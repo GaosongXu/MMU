@@ -3,7 +3,7 @@
 //Introduction: The module is used to store the data, and the data can be read by the read port.
 //              For interface to dsa.
 
-`include "src/sram.v"
+`include "src/simple_dual_one_clock.v"
 
 module sync_fifo #(
     parameter FIFO_PTR = 10,
@@ -113,15 +113,14 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 //build a sram here
-sram #(
+simple_dual_one_clock  #(
     .ADDR_WIDTH(FIFO_PTR),
     .DATA_WIDTH(FIFO_WIDTH)
-) sram_0 (
-    .wr_clk(clk),
+) sdp_0 (
+    .clk(clk),
     .wr_en(write_en),
     .wr_ptr(wr_ptr),
     .wr_data(write_data),
-    .rd_clk(clk),
     .rd_en(read_en),
     .rd_ptr(rd_ptr),
     .rd_data(read_data)

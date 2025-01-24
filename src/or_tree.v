@@ -48,13 +48,13 @@ input [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size;
 input free_valid; 
 input [`REQ_ID_WIDTH-1:0] free_id;
-input [`FREE_PAGE_IDX_WIDTH-1:0] free_page_index;
+input [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] free_size;
 
 
 output alloc_fifo_push_en;
 output [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id;
-output [`FREE_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
+output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
 output alloc_fifo_push_fail;
 output [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason;
 
@@ -98,13 +98,13 @@ reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_n1,alloc_size_n2;
 
 reg free_valid_n1,free_valid_n2;
 reg [`REQ_ID_WIDTH-1:0] free_id_n1,free_id_n2;
-reg [`FREE_PAGE_IDX_WIDTH-1:0] free_page_index_n1,free_page_index_n2;
+reg [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index_n1,free_page_index_n2;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_size_n1,free_size_n2;
 
 
 reg alloc_fifo_push_en;
 reg [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id;
-reg [`FREE_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
+reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
 reg alloc_fifo_push_fail;
 reg [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason;
 
@@ -119,7 +119,7 @@ reg [`OR_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence;
 
 reg alloc_fifo_push_en_next;
 reg [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id_next;
-reg [`FREE_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx_next;
+reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx_next;
 reg alloc_fifo_push_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason_next;
 
@@ -318,7 +318,6 @@ always @(*) begin
     write_en = 1'b0;
     write_addr = 0;
     write_data = 0;
-
     if(alloc_valid_n2 && !alloc_error_meet ) begin
         write_en = alloc_write_en;
         write_addr = alloc_tree_index;
