@@ -31,8 +31,8 @@ input read_en;
 output [FIFO_WIDTH-1:0] read_data;
 output fifo_full;
 output fifo_empty;  
-output [FIFO_PTR-1:0] fifo_data_count;
-output [FIFO_PTR-1:0] fifo_free_count;
+output [FIFO_PTR:0] fifo_data_count;
+output [FIFO_PTR:0] fifo_free_count;
 
 //************************************ parameters
 localparam FIFO_DEPTH_MINUS1 =  FIFO_DEPTH - 1;
@@ -40,12 +40,12 @@ localparam FIFO_DEPTH_MINUS1 =  FIFO_DEPTH - 1;
 //************************************ signals
 reg [FIFO_PTR-1:0] wr_ptr,wr_ptr_next;
 reg [FIFO_PTR-1:0] rd_ptr,rd_ptr_next;
-reg [FIFO_PTR-1:0] num_entries,num_entries_next;
+reg [FIFO_PTR:0] num_entries,num_entries_next;
 reg fifo_full,fifo_empty;
 wire fifo_full_next,fifo_empty_next;
-reg [FIFO_PTR-1:0] fifo_free_count;
-wire [FIFO_PTR-1:0] fifo_free_count_next;
-wire [FIFO_PTR-1:0] fifo_data_count;
+reg [FIFO_PTR:0] fifo_free_count;
+wire [FIFO_PTR:0] fifo_free_count_next;
+wire [FIFO_PTR:0] fifo_data_count;
 
 //************************************ combinational logic
 always @(*) begin:wr_ptr_next_logic
@@ -85,8 +85,8 @@ always @(*) begin
     end
 end
 
-assign fifo_full_nxt = (num_entries_next == FIFO_DEPTH);
-assign fifo_empty_nxt = (num_entries_next == 0);
+assign fifo_full_next = (num_entries_next == FIFO_DEPTH);
+assign fifo_empty_next = (num_entries_next == 0);
 assign fifo_data_count = num_entries;
 assign fifo_free_count_next = FIFO_DEPTH - num_entries;
 
@@ -106,8 +106,8 @@ always @(posedge clk or negedge rst_n) begin
         wr_ptr <= wr_ptr_next;
         rd_ptr <= rd_ptr_next;
         num_entries <= num_entries_next;
-        fifo_full <= fifo_full_nxt;
-        fifo_empty <= fifo_empty_nxt;
+        fifo_full <= fifo_full_next;
+        fifo_empty <= fifo_empty_next;
         fifo_free_count <= fifo_free_count_next;
     end
 end

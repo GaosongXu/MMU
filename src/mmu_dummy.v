@@ -8,8 +8,8 @@
 module mmu_dummy 
 #(
     parameter MAX_4K_PAGE_COUNT = 4096,  //!16MB
-    parameter ADDR_WIDTH = 12, //!4K page addr
-    parameter FIFO_DATA_WIDTH = 12 //!1same as ADDR_WIDTH, be used to store the 4K page addr
+    parameter ADDR_WIDTH = 12, //!4K page addr,0~4095
+    parameter FIFO_DATA_WIDTH = 12 //!1same as ADDR_WIDTH, be used to store the 4K page addr,0~4095
 )
 (
     clk,
@@ -90,21 +90,6 @@ reg free_rsp_fail, free_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason, free_rsp_fail_reason_next;
 
 
-//************************************ initial block
-integer i;
-initial begin
-    $display("mmu_dummy: init begin");
-    for (i=0; i<MAX_4K_PAGE_COUNT; i=i+1) begin
-        page_stored_fifo.sdp_0.memory[i] = i;
-    end
-    page_stored_fifo.wr_ptr_next = MAX_4K_PAGE_COUNT-1;
-    page_stored_fifo.wr_ptr = MAX_4K_PAGE_COUNT-1;
-    page_stored_fifo.rd_ptr_next = 0;
-    page_stored_fifo.rd_ptr = 0;
-    page_stored_fifo.num_entries = MAX_4K_PAGE_COUNT;
-    page_stored_fifo.num_entries_next = MAX_4K_PAGE_COUNT;
-    $display("mmu_dummy: init end");
-end
 //build a state machine to get the request from 
 //the alloc request fifo and free request fifo
 
@@ -155,7 +140,7 @@ always @(*) begin
             //we now get the free id and page idx from free fifo poped
             //build a response
             page_fifo_push = 1;
-            page_write_data = free_req_page_count[14:3]; //4k page idx
+            page_write_data = free_req_page_idx[14:3]; //4k page idx
             free_rsp_write_en_next = 1; //write back in next cycle
             free_rsp_id_next = free_req_id;
             free_rsp_fail_next = 0;

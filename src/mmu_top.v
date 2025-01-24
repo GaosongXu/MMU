@@ -98,9 +98,28 @@ wire [`FAIL_REASON_WIDTH-1:0] mmu_free_rsp_fail_reason;
 
 //!the dummy mmu module
 `ifdef MMU_FIFO_MODE
-    
-
-
+  mmu_dummy  mmu_dummy_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .alloc_req_pop(mmu_alloc_req_pop),
+      .alloc_req_id(mmu_alloc_req_id),
+      .alloc_req_page_count(mmu_alloc_req_page_count),
+      .alloc_fifo_empty(mmu_alloc_fifo_empty),
+      .free_req_pop(mmu_free_req_pop),
+      .free_req_id(mmu_free_req_id),
+      .free_req_page_idx(mmu_free_req_page_idx),
+      .free_req_page_count(mmu_free_req_page_count),
+      .free_fifo_empty(mmu_free_fifo_empty),
+      .alloc_rsp_write_en(mmu_alloc_rsp_write_en),
+      .alloc_rsp_id(mmu_alloc_rsp_id),
+      .alloc_rsp_page_idx(mmu_alloc_rsp_page_idx),
+      .alloc_rsp_fail(mmu_alloc_rsp_fail),
+      .alloc_rsp_fail_reason(mmu_alloc_rsp_fail_reason),
+      .free_rsp_write_en(mmu_free_rsp_write_en),
+      .free_rsp_id(mmu_free_rsp_id),
+      .free_rsp_fail(mmu_free_rsp_fail),
+      .free_rsp_fail_reason(mmu_free_rsp_fail_reason)
+    );
 //!the real mmu module
 `else
 

@@ -36,6 +36,7 @@ module first_zero (
   wire [63:0] data_reverse;
   wire [63:0] data_reverse_dec_1;
   wire [63:0] dara_reverse_dec_1_reverse;
+  wire [63:0] mask_result;
 
   wire [15:0] data_split_part1;
   wire [15:0] data_split_part2;
