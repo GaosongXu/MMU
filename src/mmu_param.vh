@@ -2,6 +2,19 @@
 // `define MMU_TREE_MODE 1 
 
 
+//fdt related
+`define FDT_ADDR_WIDTH  1
+`define FDT_INDEX_WIDTH   6//64
+`define FTD_DATA_WIDTH 64
+`define FDT_BIT_WIDTH  4 //generate 4 bit
+
+
+//at tree related
+`define AT_TREE_INDEX_WIDTH  6 //64
+`define AT_TREE_DATA_WIDTH 64
+`define AT_TREE_BIT_WIDTH 4 //generate 4 bit , the at tree is 4 * 64 = 256 bit
+
+
 //or tree related
 `define OR_TREE_INDEX_WIDTH  12 //4096
 `define OR_TREE_COUNT 4096
@@ -16,7 +29,6 @@
 `define FREE_FAIL_REASON_SUCCESS 0  
 `define FREE_FAIL_REASON_OVER_4KB 1
 `define FREE_FAIL_REASON_FREE_OTHER 2
-`define FREE_FAIL_REASON_UNKNOWN_INTERNAL_ERROR 3
 
 
 //all page idx
@@ -31,11 +43,6 @@
 `define REQ_2K  1
 `define REQ_1K  2
 `define REQ_512  3
-
-//at tree related
-`define AT_TREE_IDX 6
-`define AT_TREE_COUNT 64
-`define AT_TREE_BIT_SEQUENCE_WIDTH 4
 
 
 //fifo related

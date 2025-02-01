@@ -19,23 +19,21 @@
     free_page_index,
     free_size,
 
-
-    //output to the fifo
-    alloc_fifo_push_en,
-    alloc_fifo_push_req_id,
-    alloc_fifo_push_page_idx,
-    alloc_fifo_push_fail,
-    alloc_fifo_push_reason,
-
-    free_fifo_push_en,
-    free_fifo_push_req_id,
-    free_fifo_push_fail,
-    free_fifo_push_reason,
-
     at_tree_update_en,
-    at_tree_update_idx,
-    at_tree_update_bit_sequence
-
+    at_tree_update_column_idx,
+    at_tree_update_row_idx,
+    at_tree_update_bit_sequence,
+    
+    alloc_rsp_write_en,
+    alloc_rsp_id,
+    alloc_rsp_page_idx,
+    alloc_rsp_fail,
+    alloc_rsp_fail_reason,
+    
+    free_rsp_write_en,
+    free_rsp_id,
+    free_rsp_fail,
+    free_rsp_fail_reason
 );
 
 
@@ -52,20 +50,22 @@ input [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] free_size;
 
 
-output alloc_fifo_push_en;
-output [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id;
-output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
-output alloc_fifo_push_fail;
-output [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason;
-
-output free_fifo_push_en;
-output [`REQ_ID_WIDTH-1:0] free_fifo_push_req_id;
-output free_fifo_push_fail;
-output [`FAIL_REASON_WIDTH-1:0] free_fifo_push_reason;
-
 output at_tree_update_en;
-output [`OR_TREE_INDEX_WIDTH-1:0] at_tree_update_idx;
-output [`OR_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence;
+output [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx;
+output [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_row_idx;
+output [`AT_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence;
+
+
+output alloc_rsp_write_en;
+output [`REQ_ID_WIDTH-1:0] alloc_rsp_id;
+output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;    
+output alloc_rsp_fail;
+output [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
+
+output free_rsp_write_en;
+output [`REQ_ID_WIDTH-1:0] free_rsp_id;
+output free_rsp_fail;
+output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
 
 
 //************************************ signals
@@ -102,35 +102,28 @@ reg [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index_n1,free_page_index_n2;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_size_n1,free_size_n2;
 
 
-reg alloc_fifo_push_en;
-reg [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id;
-reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx;
-reg alloc_fifo_push_fail;
-reg [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason;
-
-reg free_fifo_push_en;
-reg [`REQ_ID_WIDTH-1:0] free_fifo_push_req_id;
-reg free_fifo_push_fail;
-reg [`FAIL_REASON_WIDTH-1:0] free_fifo_push_reason;
 
 reg at_tree_update_en;
-reg [`OR_TREE_INDEX_WIDTH-1:0] at_tree_update_idx;
-reg [`OR_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence;
+reg [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx;
+reg [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_row_idx;
+reg [`AT_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence;
 
-reg alloc_fifo_push_en_next;
-reg [`REQ_ID_WIDTH-1:0] alloc_fifo_push_req_id_next;
-reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_fifo_push_page_idx_next;
-reg alloc_fifo_push_fail_next;
-reg [`FAIL_REASON_WIDTH-1:0] alloc_fifo_push_reason_next;
-
-reg free_fifo_push_en_next;
-reg [`REQ_ID_WIDTH-1:0] free_fifo_push_req_id_next;
-reg free_fifo_push_fail_next;
-reg [`FAIL_REASON_WIDTH-1:0] free_fifo_push_reason_next;
 
 reg at_tree_update_en_next;
-reg [`OR_TREE_INDEX_WIDTH-1:0] at_tree_update_idx_next;
-reg [`OR_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence_next;
+reg [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx_next;
+reg [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_row_idx_next;
+reg [`AT_TREE_BIT_WIDTH-1:0] at_tree_update_bit_sequence_next;
+
+reg alloc_rsp_write_en, alloc_rsp_write_en_next;
+reg [`REQ_ID_WIDTH-1:0] alloc_rsp_id, alloc_rsp_id_next;
+reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx, alloc_rsp_page_idx_next;    
+reg alloc_rsp_fail, alloc_rsp_fail_next;
+reg [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason, alloc_rsp_fail_reason_next;
+
+reg free_rsp_write_en, free_rsp_write_en_next;
+reg [`REQ_ID_WIDTH-1:0] free_rsp_id, free_rsp_id_next;
+reg free_rsp_fail, free_rsp_fail_next;
+reg [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason, free_rsp_fail_reason_next;
 
 
 wire [`OR_TREE_BIT_WIDTH-1:0] alloc_magic [`OR_TREE_BIT_WIDTH-1:0];
@@ -313,36 +306,130 @@ always @(*) begin
     end
 end
 
-//!in the third clk cycle,write the ram, the alloc and free must not in the same clk cycle
+//!in the 3rd clk cycle,write the data to the or tree
 always @(*) begin
     write_en = 1'b0;
     write_addr = 0;
     write_data = 0;
     if(alloc_valid_n2 && !alloc_error_meet ) begin
         write_en = alloc_write_en;
-        write_addr = alloc_tree_index;
+        write_addr = alloc_id_n2;
         write_data = alloc_write_data;
     end else if(free_valid_n2 && !free_error_meet) begin
         write_en = free_write_en;
         write_addr = free_page_index_n2 >> 3;
         write_data = free_write_data;
     end
-
 end
 
-//in the third clk cycle,write the result to fifo
-// always @(*)begin
+//!in the third clk cycle,write the result to fifo
+//!we make sure this fifo wirte have the highest priority other than the dispather
+//!so it not need a write valid signal back
+//the rsp write opt will output the module in 4rd clk cycle
+//!for malloc
+always @(*)begin
+    alloc_rsp_write_en_next = 1'b0;
+    alloc_rsp_id_next = 0;
+    alloc_rsp_page_idx_next = 0;
+    alloc_rsp_fail_next = 1'b0;
+    alloc_rsp_fail_reason_next = 0;
+    if (alloc_valid_n2) begin
+        //we have do a alloc method 
+        alloc_rsp_write_en_next = 1'b1;
+        alloc_rsp_id_next = alloc_id_n2;
+        if (alloc_error_meet) begin
+            alloc_rsp_fail_next = 1'b1;
+            alloc_rsp_fail_reason_next = `ALLOC_FAIL_REASON_UNKNOWN_INTERNAL_ERROR;
+        end else begin
+            alloc_rsp_page_idx_next = alloc_tree_index_n2<<3 + alloc_page_idx;
+        end
+    end 
+end
 
 
-// end
+//!for free
+always @(*) begin
+    //same as the alloc 
+    free_rsp_write_en_next = 1'b0;
+    free_rsp_id_next = 0;
+    free_rsp_fail_next = 1'b0;
+    free_rsp_fail_reason_next = 0;
+    if (free_valid_n2) begin
+        free_rsp_write_en_next = 1'b1;
+        free_rsp_id_next = free_id_n2;
+        if (free_error_meet) begin
+            free_rsp_fail_next = 1'b1;
+            free_rsp_fail_reason_next = `FREE_FAIL_REASON_FREE_OTHER;
+        end
+    end
+end
 
 
-//in the third clk cycle, generate the update value to the and tree
-// always @(*) begin
-    
-// end
+
+//!in 3rd clock, generate the at update next signal
+//!will pop to at tree in 4th clock
+//!only stop pop when free fail
+//!why the alloc ignore the fail:
+//!1.the alloc fail in or tree is unkonw, so the possible is low
+//!2.we have a mask in fdt, we must pop the change to set the mask back
+always @(*) begin
+    at_tree_update_en_next = 1'b0;
+    at_tree_update_column_idx_next = 0;
+    at_tree_update_row_idx_next = 0;
+    at_tree_update_bit_sequence_next = 0;
+
+    if (free_valid_n2 && !free_error_meet) begin
+        at_tree_update_en_next = 1'b1;
+        at_tree_update_row_idx_next = free_page_index_n2>>3>> `AT_TREE_INDEX_WIDTH; //64*64 table, page >>3 >> 6,move 3 because the page is 4k, 1 tree 8 page
+        at_tree_update_column_idx_next = free_page_index_n2>>3 & ((1<<`AT_TREE_INDEX_WIDTH)-1); //64*64 table, page >>3 & 63
+        at_tree_update_bit_sequence_next = {&free_write_data[14],&free_write_data[13:12],&free_write_data[11:8],&free_write_data[7:0]};
+    end 
+    else if (alloc_valid_n2) begin
+        at_tree_update_en_next = 1'b1;
+        at_tree_update_row_idx_next = alloc_tree_index_n2>> `AT_TREE_INDEX_WIDTH;
+        at_tree_update_column_idx_next = alloc_tree_index_n2 & ((1<<`AT_TREE_INDEX_WIDTH)-1);
+        at_tree_update_bit_sequence_next = {&alloc_write_data[14],&alloc_write_data[13:12],&alloc_write_data[11:8],&alloc_write_data[7:0]};
+    end
+end
+
+always @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+        at_tree_update_en <= 1'b0;
+        at_tree_update_column_idx <= 0;
+        at_tree_update_row_idx <= 0;
+        at_tree_update_bit_sequence <= 0;
+    end else begin
+        at_tree_update_en <= at_tree_update_en_next;
+        at_tree_update_column_idx <= at_tree_update_column_idx_next;
+        at_tree_update_row_idx <= at_tree_update_row_idx_next;
+        at_tree_update_bit_sequence <= at_tree_update_bit_sequence_next;
+    end 
+end
 
 
+always @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+        alloc_rsp_write_en <= 1'b0;
+        alloc_rsp_id <= 0;
+        alloc_rsp_page_idx <= 0;
+        alloc_rsp_fail <= 1'b0;
+        alloc_rsp_fail_reason <= 0;
+        free_rsp_write_en <= 1'b0;
+        free_rsp_id <= 0;
+        free_rsp_fail <= 1'b0;
+        free_rsp_fail_reason <= 0;
+    end else begin
+        alloc_rsp_write_en <= alloc_rsp_write_en_next;
+        alloc_rsp_id <= alloc_rsp_id_next;
+        alloc_rsp_page_idx <= alloc_rsp_page_idx_next;
+        alloc_rsp_fail <= alloc_rsp_fail_next;
+        alloc_rsp_fail_reason <= alloc_rsp_fail_reason_next;
+        free_rsp_write_en <= free_rsp_write_en_next;
+        free_rsp_id <= free_rsp_id_next;
+        free_rsp_fail <= free_rsp_fail_next;
+        free_rsp_fail_reason <= free_rsp_fail_reason_next;
+    end
+end
 
 
 //************************************ sequential logic
