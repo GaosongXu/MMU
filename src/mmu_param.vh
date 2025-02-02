@@ -20,6 +20,7 @@
 `define OR_TREE_COUNT 4096
 `define OR_TREE_BIT_WIDTH 15
 
+
 //fail reason related
 `define FAIL_REASON_WIDTH 2
 `define ALLOC_FAIL_REASON_SUCCESS 0
@@ -28,7 +29,8 @@
 `define ALLOC_FAIL_REASON_UNKNOWN_INTERNAL_ERROR 3  
 `define FREE_FAIL_REASON_SUCCESS 0  
 `define FREE_FAIL_REASON_OVER_4KB 1
-`define FREE_FAIL_REASON_FREE_OTHER 2
+`define FREE_FAIL_REASON_EQUAL_ZERO 2
+`define FREE_FAIL_REASON_FREE_OTHER 3
 
 
 //all page idx
@@ -39,10 +41,10 @@
 `define REQ_SIZE_TYPE_WIDTH 4
 `define REQ_ALLOC_TYPE 0
 `define REQ_FREE_TYPE 1
-`define REQ_4K  0
-`define REQ_2K  1
+`define REQ_4K  8
+`define REQ_2K  4
 `define REQ_1K  2
-`define REQ_512  3
+`define REQ_512  1
 
 
 //fifo related

@@ -34,15 +34,11 @@ always @(posedge clk) begin
     if(write_en) begin
         memory[write_addr] <= write_data;
     end
-    if (read_addr == write_addr) begin
-        read_data <= write_data;
-    end
-    else begin
-        read_data <= memory[read_addr];
-    end
 end
 
-
+always @(posedge clk ) begin
+    read_data <= memory[read_addr];    
+end
     
 endmodule
 

@@ -8,7 +8,8 @@
 module sync_fifo #(
     parameter FIFO_PTR = 10,
     parameter FIFO_WIDTH = 32,
-    parameter FIFO_DEPTH = 1024
+    parameter FIFO_DEPTH = 1024,
+    parameter FIFO_ALMOST_GAP = 6
 ) (
     clk,
     rst_n,
@@ -19,7 +20,9 @@ module sync_fifo #(
     fifo_full,
     fifo_empty,
     fifo_data_count,
-    fifo_free_count
+    fifo_free_count,
+    fifo_almost_full,
+    fifo_almost_empty
 );
 
 //************************************ ports
@@ -31,6 +34,8 @@ input read_en;
 output [FIFO_WIDTH-1:0] read_data;
 output fifo_full;
 output fifo_empty;  
+output fifo_almost_full;
+output fifo_almost_empty;
 output [FIFO_PTR:0] fifo_data_count;
 output [FIFO_PTR:0] fifo_free_count;
 
@@ -43,6 +48,10 @@ reg [FIFO_PTR-1:0] rd_ptr,rd_ptr_next;
 reg [FIFO_PTR:0] num_entries,num_entries_next;
 reg fifo_full,fifo_empty;
 wire fifo_full_next,fifo_empty_next;
+reg fifo_almost_full;
+wire fifo_almost_full_next;
+reg fifo_almost_empty;
+wire fifo_almost_empty_next;
 reg [FIFO_PTR:0] fifo_free_count;
 wire [FIFO_PTR:0] fifo_free_count_next;
 wire [FIFO_PTR:0] fifo_data_count;
@@ -89,6 +98,8 @@ assign fifo_full_next = (num_entries_next == FIFO_DEPTH);
 assign fifo_empty_next = (num_entries_next == 0);
 assign fifo_data_count = num_entries;
 assign fifo_free_count_next = FIFO_DEPTH - num_entries;
+assign fifo_almost_full_next = (fifo_free_count_next <= FIFO_ALMOST_GAP);
+assign fifo_almost_empty_next = (num_entries_next <= FIFO_ALMOST_GAP);
 
 
 //*********************************************sequential logic
@@ -101,6 +112,8 @@ always @(posedge clk or negedge rst_n) begin
         fifo_full <= 0;
         fifo_empty <= 1;
         fifo_free_count <= FIFO_DEPTH;
+        fifo_almost_full <= 0;
+        fifo_almost_empty <= 1; //almost empty is always true at the beginning
     end
     else begin
         wr_ptr <= wr_ptr_next;
@@ -109,6 +122,8 @@ always @(posedge clk or negedge rst_n) begin
         fifo_full <= fifo_full_next;
         fifo_empty <= fifo_empty_next;
         fifo_free_count <= fifo_free_count_next;
+        fifo_almost_full <= fifo_almost_full_next;
+        fifo_almost_empty <= fifo_almost_empty_next;
     end
 end
 

@@ -44,24 +44,16 @@ always @(posedge clk) begin
     if(write_en) begin
         memory[write_addr] <= write_data;
     end
-    
-    if (read_addr1 == write_addr) begin
-        read_data1 <= write_data;
-    end
-    else begin
-        read_data1 <= memory[read_addr1];
-    end
-    
-    if (read_addr2 == write_addr) begin
-        read_data2 <= write_data;
-    end
-    else begin
-        read_data2 <= memory[read_addr2];
-    end
+end
 
+always @(posedge clk ) begin
+    read_data1 <= memory[read_addr1];    
 end
 
 
-    
+always @(posedge clk ) begin
+    read_data2 <= memory[read_addr2];    
+end
+ 
 endmodule
 

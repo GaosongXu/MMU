@@ -94,6 +94,16 @@ wire [`REQ_ID_WIDTH-1:0] mmu_free_rsp_id;
 wire mmu_free_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] mmu_free_rsp_fail_reason;
 
+wire mmu_alloc_req_fifo_almost_full;
+wire mmu_free_req_fifo_almost_full;
+wire mmu_alloc_rsp_fifo_almost_full;
+wire mmu_free_rsp_fifo_almost_full;
+wire mmu_alloc_req_fifo_almost_empty;
+wire mmu_free_req_fifo_almost_empty;
+wire mmu_alloc_rsp_fifo_almost_empty;
+wire mmu_free_rsp_fifo_almost_empty;
+
+wire [`FIFO_PTR_WIDTH:0] mmu_free_req_fifo_data_count;
 //*******************************************************module instantiation
 
 //!the dummy mmu module
@@ -146,6 +156,8 @@ wire [`FAIL_REASON_WIDTH-1:0] mmu_free_rsp_fail_reason;
      .read_data({mmu_alloc_req_page_count,mmu_alloc_req_id}),
      .fifo_full(alloc_req_fifo_full),
      .fifo_empty(mmu_alloc_fifo_empty),//!for dispater
+     .fifo_almost_full(mmu_alloc_req_fifo_almost_full),
+     .fifo_almost_empty(mmu_alloc_req_fifo_almost_empty),
      .fifo_data_count(),
      .fifo_free_count()
    ); 
@@ -165,7 +177,9 @@ wire [`FAIL_REASON_WIDTH-1:0] mmu_free_rsp_fail_reason;
        .read_data({mmu_free_req_page_count,mmu_free_req_page_idx,mmu_free_req_id}),
        .fifo_full(free_req_fifo_full),
        .fifo_empty(mmu_free_fifo_empty),//!for dispater
-       .fifo_data_count(),
+       .fifo_almost_full(mmu_free_req_fifo_almost_full),
+       .fifo_almost_empty(mmu_free_req_fifo_almost_empty),
+       .fifo_data_count(mmu_free_req_fifo_data_count),
        .fifo_free_count()
      ); 
    
@@ -187,6 +201,8 @@ assign alloc_rsp_fifo_not_empty = ~alloc_resp_fifo_empty;
        .read_data({alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id}),
        .fifo_full(mmu_alloc_rsp_fifo_full),
        .fifo_empty(alloc_resp_fifo_empty),
+       .fifo_almost_full(alloc_rsp_fifo_almost_full),
+       .fifo_almost_empty(alloc_rsp_fifo_almost_empty),
        .fifo_data_count(),
        .fifo_free_count()
      ); 
@@ -211,6 +227,8 @@ assign alloc_rsp_fifo_not_empty = ~alloc_resp_fifo_empty;
        .read_data({free_rsp_fail_reason,free_rsp_fail,free_rsp_id}),
        .fifo_full(mmu_free_rsp_fifo_full),
        .fifo_empty(free_resp_fifo_empty),
+       .fifo_almost_full(mmu_free_rsp_fifo_almost_full),
+       .fifo_almost_empty(mmu_free_rsp_fifo_almost_empty),
        .fifo_data_count(),
        .fifo_free_count()
      ); 
