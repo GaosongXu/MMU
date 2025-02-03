@@ -132,10 +132,31 @@ wire [`FIFO_PTR_WIDTH:0] mmu_free_req_fifo_data_count;
     );
 //!the real mmu module
 `else
-
-
-
-
+  mmu_tree  mmu_tree_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .alloc_req_pop(mmu_alloc_req_pop),
+      .alloc_req_id(mmu_alloc_req_id),
+      .alloc_req_page_count(mmu_alloc_req_page_count),
+      .alloc_fifo_empty(mmu_alloc_fifo_empty),
+      .free_req_pop(mmu_free_req_pop),
+      .free_req_id(mmu_free_req_id),
+      .free_req_page_idx(mmu_free_req_page_idx),
+      .free_req_page_count(mmu_free_req_page_count),
+      .free_fifo_empty(mmu_free_fifo_empty),
+      .free_fifo_data_count(mmu_free_req_fifo_data_count),
+      .alloc_rsp_write_en(mmu_alloc_rsp_write_en),
+      .alloc_rsp_id(mmu_alloc_rsp_id),
+      .alloc_rsp_page_idx(mmu_alloc_rsp_page_idx),
+      .alloc_rsp_fail(mmu_alloc_rsp_fail),
+      .alloc_rsp_fail_reason(mmu_alloc_rsp_fail_reason),
+      .alloc_rsp_fifo_almost_full(mmu_alloc_rsp_fifo_almost_full),
+      .free_rsp_write_en(mmu_free_rsp_write_en),
+      .free_rsp_id(mmu_free_rsp_id),
+      .free_rsp_fail(mmu_free_rsp_fail),
+      .free_rsp_fail_reason(mmu_free_rsp_fail_reason),
+      .free_rsp_fifo_almost_full(mmu_free_rsp_fifo_almost_full)
+      );
 `endif
 
 
@@ -201,8 +222,8 @@ assign alloc_rsp_fifo_not_empty = ~alloc_resp_fifo_empty;
        .read_data({alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id}),
        .fifo_full(mmu_alloc_rsp_fifo_full),
        .fifo_empty(alloc_resp_fifo_empty),
-       .fifo_almost_full(alloc_rsp_fifo_almost_full),
-       .fifo_almost_empty(alloc_rsp_fifo_almost_empty),
+       .fifo_almost_full(mmu_alloc_rsp_fifo_almost_full),
+       .fifo_almost_empty(mmu_alloc_rsp_fifo_almost_empty),
        .fifo_data_count(),
        .fifo_free_count()
      ); 
