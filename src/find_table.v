@@ -1,9 +1,9 @@
 //!the entrance to handle the alloc request and the end to handle the poped up update opt.
 //!we dont need ram here, the fdt only need 256bit
 //!the kernel of this module is the mask
-`include "src/mmu_param.vh"
-`include "src/ram_2port.v"
-`include "src/first_zero.v"
+`include "../src/mmu_param.vh"
+`include "../src/ram_2port.v"
+`include "../src/first_zero.v"
 
 module find_table(
     clk,

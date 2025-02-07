@@ -3,8 +3,8 @@
 //!Introduction: The module is used to handle the alloc or free request and update the or tree table.
 //              Then update the tree and pop the change to the and tree module.
 
-`include "src/ram_3port.v"
-`include "src/mmu_param.vh"
+`include "../src/ram_3port.v"
+`include "../src/mmu_param.vh"
 
  module or_tree (
     clk,

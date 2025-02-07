@@ -1,5 +1,6 @@
 
-`include "src/mmu_top.v"
+`include "../../src/mmu_top.v"
+`ifdef MMU_FIFO_MODE
 module mmu_top_tb;
 
   // Parameters
@@ -70,7 +71,6 @@ module mmu_top_tb;
             #4;
             alloc_req_submit = 0;
         end
-
         for (i=0; i<10; i=i+1) begin
             free_req_submit = 1;
             free_req_id = i;
@@ -109,3 +109,4 @@ module mmu_top_tb;
 //always #5  clk = ! clk ;
 
 endmodule
+`endif

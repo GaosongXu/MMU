@@ -2,8 +2,10 @@
 //Usage:  A simple synchronous FIFO module with 1 write port and 1 read port
 //Introduction: The module is used to store the data, and the data can be read by the read port.
 //              For interface to dsa.
+`ifndef SYNC_FIFO_H
+`define SYNC_FIFO_H
 
-`include "src/simple_dual_one_clock.v"
+`include "../src/simple_dual_one_clock.v"
 
 module sync_fifo #(
     parameter FIFO_PTR = 10,
@@ -144,3 +146,4 @@ simple_dual_one_clock  #(
 endmodule
 
 
+`endif

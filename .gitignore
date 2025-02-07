@@ -1,4 +1,6 @@
-*
+.vscode/**
+.idea/**
+mmu/**
 !*.v
 !*.vh
 !.gitignore

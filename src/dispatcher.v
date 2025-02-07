@@ -1,9 +1,9 @@
 //!connect to the fifo, and filter the invalid requests
 //!do a dispatcher and control the switch between the alloc and free mode
 //!it will maintain a fsm to control the dispatch logic
-`include "src/mmu_param.vh"
+`include "../src/mmu_param.vh"
 module dispatcher  #(
-    parameter FREE_THRESHOLD = 256 //the threshold of the free fifo
+    parameter FREE_THRESHOLD = 64 //the threshold of the free fifo
 )
 (
     clk,

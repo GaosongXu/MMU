@@ -1,5 +1,8 @@
-`define MMU_FIFO_MODE 1 
-// `define MMU_TREE_MODE 1 
+`ifndef MMU_PARAM_H
+`define MMU_PARAM_H
+
+// `define MMU_FIFO_MODE 1 
+`define MMU_TREE_MODE 1 
 
 
 //fdt related
@@ -50,3 +53,5 @@
 //fifo related
 `define FIFO_DEPTH 1024
 `define FIFO_PTR_WIDTH 10
+
+`endif

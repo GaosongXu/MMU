@@ -1,6 +1,6 @@
 
 //DUT: firstZero.v
-`include "src/first_zero.v"
+`include "../../src/first_zero.v"
 
 module first_zero_tb;
 

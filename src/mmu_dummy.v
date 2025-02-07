@@ -3,8 +3,8 @@
 //!              it will use fifo to store the 4K page addr, so the address always
 //!              be the 4K aligned.
 
-`include "src/sync_fifo.v"
-`include "src/mmu_param.vh"
+`include "../src/sync_fifo.v"
+`include "../src/mmu_param.vh"
 module mmu_dummy 
 #(
     parameter MAX_4K_PAGE_COUNT = 4096,  //!16MB

@@ -2,9 +2,9 @@
 //! the module handle the find request from fdt, and updated by the or_tree
 //! then pop the update value to the fdt
 
-`include "src/ram_3port.v"
-`include "src/mmu_param.vh"
-`include "src/first_zero.v"
+`include "../src/ram_3port.v"
+`include "../src/mmu_param.vh"
+`include "../src/first_zero.v"
 
 module and_tree  (
     clk,

@@ -6,6 +6,8 @@
 //              the read data will be the write data in the same position.
 //              The write data will be stored in the ram in the next clk cycle. 
 //              The read data will be the data in the ram in the current clk cycle.
+`ifndef RAM_3PORT_H
+`define RAM_3PORT_H
 
 module ram_3port #(
     parameter ADDR_WIDTH = 6,
@@ -57,3 +59,5 @@ end
  
 endmodule
 
+
+`endif

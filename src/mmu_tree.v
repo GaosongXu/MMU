@@ -1,17 +1,16 @@
 //!mmu tree module, connect all modules together, and export the ports to interface with the top module
 //!we need a little bit logic here to solve the parrallel rsp write req
 
-`include "src/mmu_param.vh"
-`include "src/dispatcher.v"
-`include "src/find_table.v"
-`include "src/and_tree.v"
-`include "src/or_tree.v"
-`include "src/rsp_arbiter.v"
+
+`include "../src/dispatcher.v"
+`include "../src/find_table.v"
+`include "../src/and_tree.v"
+`include "../src/or_tree.v"
+`include "../src/rsp_arbiter.v"
 
 module mmu_tree (
     clk,
     rst_n,
-    //input
     alloc_req_pop,
     alloc_req_id,
     alloc_req_page_count,
@@ -64,7 +63,7 @@ output free_rsp_write_en;
 output [`REQ_ID_WIDTH-1:0] free_rsp_id;
 output free_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
-input free_rsp_fifo_almost_full;
+input free_rsp_fifo_almost_full;                  
 
 //dsp related ports
 wire alloc_req_valid_fdt_out;

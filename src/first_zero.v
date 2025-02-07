@@ -4,7 +4,8 @@
 //Introduction: The first clk cycle will use the operator update the data to 0000...10000 pattern.
 //              And the next clk cycle will find the position of the first zero in the edited data
 //              stream.
-
+`ifndef FIRST_ZERO_H
+`define FIRST_ZERO_H
 
 module first_zero (
     clk,
@@ -209,3 +210,5 @@ module first_zero (
 
 
 endmodule
+
+`endif
