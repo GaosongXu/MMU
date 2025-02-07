@@ -334,34 +334,10 @@ interface mmu_if(input clk);
     logic free_req_fifo_full;
     logic alloc_rsp_fifo_not_empty;
     logic free_rsp_fifo_not_empty;
-
-    modport MMU(
-        input clk,
-        input rst_n,
-        input alloc_req_submit,
-        input alloc_req_id,
-        input alloc_req_page_count,
-        input free_req_submit,
-        input free_req_id,
-        input free_req_page_idx,
-        input free_req_page_count,
-        input alloc_rsp_pop,
-        input free_rsp_pop,
-        output alloc_rsp_id,
-        output alloc_rsp_page_idx,
-        output alloc_rsp_fail,
-        output alloc_rsp_fail_reason,
-        output free_rsp_id,
-        output free_rsp_fail,
-        output free_rsp_fail_reason,
-        output alloc_req_fifo_full,
-        output free_req_fifo_full,
-        output alloc_rsp_fifo_not_empty,
-        output free_rsp_fifo_not_empty
-    );
-
+    
     clocking cb @(posedge clk);
         default input #1step output #0;
+        output rst_n;
         output alloc_req_submit;
         output alloc_req_id;
         output alloc_req_page_count;
@@ -384,10 +360,6 @@ interface mmu_if(input clk);
         input free_rsp_fifo_not_empty;
     endclocking
 
-    modport TEST (
-        clocking cb,
-        output rst_n
-    );
 endinterface
 
 //alloc test define
@@ -428,9 +400,9 @@ module mmu_tree_tb;
     mailbox free_rsp_box;
     reg [`REQ_ID_WIDTH-1:0] last_alloc_req_id;
     reg [`REQ_ID_WIDTH-1:0] last_free_req_id;
-    semaphore alloc_req_fifo_samphore;
-    semaphore free_req_fifo_samphore;
-    MemoryChecker momory_checker;
+    semaphore alloc_req_fifo_semaphore;
+    semaphore free_req_fifo_semaphore;
+    MemoryChecker memory_checker;
     event alloc_req_fifo_empty;
 
     initial begin
@@ -459,23 +431,53 @@ module mmu_tree_tb;
         free_rsp_box = new(MAX_REQ_SIZE);
         last_alloc_req_id = 1;
         last_free_req_id = 1;
-        alloc_req_fifo_samphore = new(1);
-        free_req_fifo_samphore = new(1);
-        momory_checker = new(alloc_rsp_box,free_rsp_box,checked_alloc_rsp_box);
+        alloc_req_fifo_semaphore = new(1);
+        free_req_fifo_semaphore = new(1);
+        memory_checker = new(alloc_rsp_box,free_rsp_box,checked_alloc_rsp_box);
     end
 
 
     initial begin
-        mif.TEST.rst_n = 0;
-        repeat(10) @(posedge mif.cb);
-        mif.TEST.rst_n = 1;
+        mif.cb.rst_n <= 0;
+        repeat(10) @(mif.cb);
+        mif.cb.rst_n <= 1;
     end
-
-    mmu_top top(mif.MMU);
+    
+    mmu_top top(
+        .clk(mif.clk),
+        .rst_n(mif.rst_n),
+        //input
+        .alloc_req_submit(mif.alloc_req_submit),
+        .alloc_req_id(mif.alloc_req_id),
+        .alloc_req_page_count(mif.alloc_req_page_count),
+    
+        .free_req_submit(mif.free_req_submit),
+        .free_req_id(mif.free_req_id),
+        .free_req_page_idx(mif.free_req_page_idx),
+        .free_req_page_count(mif.free_req_page_count),
+    
+        .alloc_rsp_pop(mif.alloc_rsp_pop),
+        .free_rsp_pop(mif.free_rsp_pop),
+    
+        //output
+        .alloc_rsp_id(mif.alloc_rsp_id),
+        .alloc_rsp_page_idx(mif.alloc_rsp_page_idx),
+        .alloc_rsp_fail(mif.alloc_rsp_fail),
+        .alloc_rsp_fail_reason(mif.alloc_rsp_fail_reason),
+        .free_rsp_id(mif.free_rsp_id),
+        .free_rsp_fail(mif.free_rsp_fail),
+        .free_rsp_fail_reason(mif.free_rsp_fail_reason),
+    
+        .alloc_req_fifo_full(mif.alloc_req_fifo_full),
+        .free_req_fifo_full(mif.free_req_fifo_full),
+    
+        .alloc_rsp_fifo_not_empty(mif.alloc_rsp_fifo_not_empty),
+        .free_rsp_fifo_not_empty(mif.free_rsp_fifo_not_empty)
+    );
 
     //the entry point of the test,wait for 50 cycles, then start the test
     initial begin
-        repeat (50) @(posedge mif.cb);//wait the mmu reset
+        repeat (50) @(mif.cb);//wait the mmu reset
         $display("MMU:start the test, time:%0t", $time);
         //check do we have pressure test
         if (!PRESSURE_TEST)begin
@@ -504,14 +506,14 @@ module mmu_tree_tb;
     task memory_checker_report_thread();
     begin
         bit over;
-        repeat(50) @(posedge mif.cb);
+        repeat(50) @(mif.cb);
         while (1) begin
             memory_checker.print_static_thread(over);
             if (over || $time > MAX_TIME_OUT) begin
                 $display("test is over, time:%0t", $time);
                 $finish;
             end
-            repeat(100) @(posedge mif.cb);
+            repeat(100) @(mif.cb);
         end        
     end
     endtask
@@ -539,18 +541,18 @@ module mmu_tree_tb;
             if (alloc_req_fifo.size()==0) begin
                 alloc_req_fifo_semaphore.put();
                 ->alloc_req_fifo_empty;
-                @(posedge mif.cb);
+                @(mif.cb);
                 continue;
             end
             req = alloc_req_fifo.pop_front();
-            alloc_req_fifo_samphore.put();
-            wait(mif.TEST.alloc_req_fifo_full == 0) @(posedge mif.cb);
-            mif.TEST.alloc_req_submit <= 1;
-            mif.TEST.alloc_req_id <= req.alloc_req_id;
-            mif.TEST.alloc_req_page_count <= req.alloc_req_page_count;
+            alloc_req_fifo_semaphore.put();
+            wait(mif.cb.alloc_req_fifo_full == 0) @(mif.cb);
+            mif.cb.alloc_req_submit <= 1;
+            mif.cb.alloc_req_id <= req.alloc_req_id;
+            mif.cb.alloc_req_page_count <= req.alloc_req_page_count;
             memory_checker.register_alloc_req(req);
-            @(posedge mif.cb);
-            mif.TEST.alloc_req_submit <= 0;//submit keep 1 cycle
+            @(mif.cb);
+            mif.cb.alloc_req_submit <= 0;//submit keep 1 cycle
         end
     end
     endtask
@@ -560,7 +562,7 @@ module mmu_tree_tb;
         alloc_rsp rsp;
         while (1) begin
             fetch_alloc_rsp();
-            momory_checker.alloc_rsp_box.put(rsp);
+            memory_checker.alloc_rsp_box.put(rsp);
         end
     end
     endtask
@@ -586,19 +588,19 @@ module mmu_tree_tb;
             free_req_fifo_semaphore.get();
             if (free_req_fifo.size()==0) begin
                 free_req_fifo_semaphore.put();
-                @(posedge mif.cb);
+                @(mif.cb);
                 continue;
             end
             req = free_req_fifo.pop_front();
-            free_req_fifo_samphore.put();
-            wait(mif.TEST.free_req_fifo_full == 0) @(posedge mif.cb);
-            mif.TEST.free_req_submit <= 1;
-            mif.TEST.free_req_id <= req.free_req_id;
-            mif.TEST.free_req_page_idx <= req.free_req_page_idx;
-            mif.TEST.free_req_page_count <= req.free_req_page_count;
+            free_req_fifo_semaphore.put();
+            wait(mif.cb.free_req_fifo_full == 0) @(mif.cb);
+            mif.cb.free_req_submit <= 1;
+            mif.cb.free_req_id <= req.free_req_id;
+            mif.cb.free_req_page_idx <= req.free_req_page_idx;
+            mif.cb.free_req_page_count <= req.free_req_page_count;
             memory_checker.register_free_req(req);
-            @(posedge mif.cb);
-            mif.TEST.free_req_submit <= 0;//submit keep 1 cycle
+            @(mif.cb);
+            mif.cb.free_req_submit <= 0;//submit keep 1 cycle
         end
     end
     endtask
@@ -608,7 +610,7 @@ module mmu_tree_tb;
         free_rsp rsp;
         while (1) begin
             fetch_free_rsp();
-            momory_checker.free_rsp_box.put(rsp);
+            memory_checker.free_rsp_box.put(rsp);
         end
     end
     endtask
@@ -632,9 +634,9 @@ module mmu_tree_tb;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
                 req.free_req_page_count = rsp.alloc_request_size;
-                free_req_fifo_samphore.get();
+                free_req_fifo_semaphore.get();
                 free_req_fifo.push_back(req);
-                free_req_fifo_samphore.put();
+                free_req_fifo_semaphore.put();
             end
         `FREE_SPLIT_ALLOC:
             begin
@@ -650,9 +652,9 @@ module mmu_tree_tb;
                         end
                         req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
                         req.free_req_page_count = 1;
-                        free_req_fifo_samphore.get();
+                        free_req_fifo_semaphore.get();
                         free_req_fifo.push_back(req);
-                        free_req_fifo_samphore.put();
+                        free_req_fifo_semaphore.put();
                     end
                 `REQ_1K:
                     begin
@@ -664,9 +666,9 @@ module mmu_tree_tb;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i;
                             req.free_req_page_count = 1;
-                            free_req_fifo_samphore.get();
+                            free_req_fifo_semaphore.get();
                             free_req_fifo.push_back(req);
-                            free_req_fifo_samphore.put();
+                            free_req_fifo_semaphore.put();
                         end
                     end
                 `REQ_2K:
@@ -679,9 +681,9 @@ module mmu_tree_tb;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
                             req.free_req_page_count = 2;
-                            free_req_fifo_samphore.get();
+                            free_req_fifo_semaphore.get();
                             free_req_fifo.push_back(req);
-                            free_req_fifo_samphore.put();
+                            free_req_fifo_semaphore.put();
                         end
                     end
                 `REQ_4K:
@@ -694,9 +696,9 @@ module mmu_tree_tb;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
                             req.free_req_page_count = 2;
-                            free_req_fifo_samphore.get();
+                            free_req_fifo_semaphore.get();
                             free_req_fifo.push_back(req);
-                            free_req_fifo_samphore.put();
+                            free_req_fifo_semaphore.put();
                         end
                     end
                 endcase 
@@ -718,9 +720,9 @@ module mmu_tree_tb;
                     end else begin
                         req.free_req_page_count = 9; //invalid over 4k
                     end
-                    free_req_fifo_samphore.get();
+                    free_req_fifo_semaphore.get();
                     free_req_fifo.push_back(req);
-                    free_req_fifo_samphore.put();
+                    free_req_fifo_semaphore.put();
                 end
                 //a correct free is need, so we generate a correct free request
                 req.free_req_id = last_free_req_id;
@@ -730,9 +732,9 @@ module mmu_tree_tb;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
                 req.free_req_page_count = rsp.alloc_request_size;//correct to free the memory
-                free_req_fifo_samphore.get();
+                free_req_fifo_semaphore.get();
                 free_req_fifo.push_back(req);
-                free_req_fifo_samphore.put();
+                free_req_fifo_semaphore.put();
             end
         endcase
     end
@@ -809,9 +811,9 @@ module mmu_tree_tb;
                         if(last_alloc_req_id==0)begin
                             last_alloc_req_id=1; //id can not be 0
                         end
-                        alloc_req_fifo_samphore.get();
+                        alloc_req_fifo_semaphore.get();
                         alloc_req_fifo.push_back(req);
-                        alloc_req_fifo_samphore.put();
+                        alloc_req_fifo_semaphore.put();
                     end
                 end
             end else begin
@@ -834,11 +836,11 @@ module mmu_tree_tb;
                 //shuffle the request
                 req_array.shuffle();
                 //push the request into the fifo
-                alloc_req_fifo_samphore.get();
+                alloc_req_fifo_semaphore.get();
                 foreach(req_array[i]) begin
                     alloc_req_fifo.push_back(req_array[i]);
                 end
-                alloc_req_fifo_samphore.put();
+                alloc_req_fifo_semaphore.put();
             end
         end
     endtask
@@ -876,9 +878,9 @@ module mmu_tree_tb;
                         random_page_count = 9; //over 4k
                     end
                 end
-                alloc_req_fifo_samphore.get();
+                alloc_req_fifo_semaphore.get();
                 alloc_req_fifo.push_back(req);
-                alloc_req_fifo_samphore.put();
+                alloc_req_fifo_semaphore.put();
             end
         end
     endtask
@@ -887,11 +889,11 @@ module mmu_tree_tb;
     );
         begin
             alloc_rsp rsp;
-            wait (mif.TEST.alloc_rsp_fifo_not_empty == 1) @(posedge mif.cb);
-            rsp.alloc_rsp_id <= mif.TEST.alloc_rsp_id;
-            rsp.alloc_rsp_page_idx <= mif.TEST.alloc_rsp_page_idx;
-            rsp.alloc_rsp_fail <= mif.TEST.alloc_rsp_fail;
-            rsp.alloc_rsp_fail_reason <= mif.TEST.alloc_rsp_fail_reason;
+            wait (mif.cb.alloc_rsp_fifo_not_empty == 1) @(mif.cb);
+            rsp.alloc_rsp_id <= mif.cb.alloc_rsp_id;
+            rsp.alloc_rsp_page_idx <= mif.cb.alloc_rsp_page_idx;
+            rsp.alloc_rsp_fail <= mif.cb.alloc_rsp_fail;
+            rsp.alloc_rsp_fail_reason <= mif.cb.alloc_rsp_fail_reason;
             rsp.alloc_request_size <= 0;
             rsp.alloc_request_aligned_size <= 0;
             mif.cb.alloc_rsp_pop <= 1; //we have read the alloc rsp, then pop it
@@ -904,10 +906,10 @@ module mmu_tree_tb;
         begin
             free_rsp rsp;
 
-            wait (mif.TEST.free_rsp_fifo_not_empty == 1)@(posedge mif.cb);
-            rsp.free_rsp_id <= mif.TEST.free_rsp_id;
-            rsp.free_rsp_fail <= mif.TEST.free_rsp_fail;
-            rsp.free_rsp_fail_reason <= mif.TEST.free_rsp_fail_reason;
+            wait (mif.cb.free_rsp_fifo_not_empty == 1)@(mif.cb);
+            rsp.free_rsp_id <= mif.cb.free_rsp_id;
+            rsp.free_rsp_fail <= mif.cb.free_rsp_fail;
+            rsp.free_rsp_fail_reason <= mif.cb.free_rsp_fail_reason;
             mif.cb.free_rsp_pop <= 1; //we have read the free rsp, then pop it
             free_rsp_box.put(rsp);
         end

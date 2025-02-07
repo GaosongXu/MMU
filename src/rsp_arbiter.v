@@ -9,7 +9,7 @@ module rsp_arbiter #(
     rsp_write_en_2,
     rsp_data_2,
     rsp_write_en,
-    rsp_data,
+    rsp_data
 );
 //************************************ parameters
 localparam RSP_FIRST = 2'd0;

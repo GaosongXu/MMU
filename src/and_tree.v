@@ -27,7 +27,7 @@ module and_tree  (
     //for fdt update request output
     fdt_update_valid,
     fdt_update_idx,
-    fdt_update_bit_sequence,
+    fdt_update_bit_sequence
 ); 
 //************************************ ports
 input clk;

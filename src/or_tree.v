@@ -208,7 +208,7 @@ always @(*) begin
     if (alloc_valid_n1) begin
         case (alloc_size_n1)
         `REQ_4K:begin
-            case (read_data1[15])
+            case (read_data1[14])
                 1'b0: alloc_page_idx_next = 3'h0;
                 default: alloc_error_meet_next = 1'b1;
             endcase                
