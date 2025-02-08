@@ -45,22 +45,21 @@ class MemoryChecker;
     mailbox alloc_rsp_box;
     mailbox free_rsp_box;
     mailbox checked_alloc_rsp_box;
+    integer total_submit_alloc_req = 0;
+    integer total_submit_free_req = 0;
 
-    integer total_submit_alloc_req;
-    integer total_submit_free_req;
-
-    integer total_success_alloc_req;
-    integer total_success_free_req;
-    integer total_fail_alloc_req;
-    integer total_fail_free_req;
-    real current_memory_usage;
-    real max_memory_usage;
-    integer page_in_use;
-    integer page_max_in_use;
-    integer diff_size_alloc_submitted_req[10];
-    integer diff_size_free_submitted_req[10];
-    integer on_flight_alloc_req;
-    integer on_flight_free_req;
+    integer total_success_alloc_req = 0;
+    integer total_success_free_req = 0;
+    integer total_fail_alloc_req = 0;
+    integer total_fail_free_req = 0;
+    real current_memory_usage = 0.0;
+    real max_memory_usage = 0.0;
+    integer page_in_use = 0;
+    integer page_max_in_use = 0;
+    integer diff_size_alloc_submitted_req[10] = '{default:0};
+    integer diff_size_free_submitted_req[10] = '{default:0};
+    integer on_flight_alloc_req = 0;
+    integer on_flight_free_req = 0;
     semaphore page_use_samaphore;
 
     //when to end the test?
@@ -334,7 +333,7 @@ interface mmu_if(input clk);
     logic free_req_fifo_full;
     logic alloc_rsp_fifo_not_empty;
     logic free_rsp_fifo_not_empty;
-    
+
     clocking cb @(posedge clk);
         default input #1step output #0;
         output rst_n;
@@ -411,14 +410,25 @@ module mmu_tree_tb;
             #CLK_PERIOD clk = ~clk;
         end
     end
-
     initial begin
-	if($test$plusargs("DUMP_FSDB"))
+        //set all ram in module to 0
+        top.mmu_tree_inst.find_table_inst.fdt_1k.memory = '{default:0};
+        top.mmu_tree_inst.find_table_inst.fdt_2k.memory = '{default:0};
+        top.mmu_tree_inst.find_table_inst.fdt_4k.memory = '{default:0};
+        top.mmu_tree_inst.find_table_inst.fdt_512.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_1k.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_2k.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_4k.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_512.memory = '{default:0};
+        top.mmu_tree_inst.or_tree_inst.or_tree_ram.memory = '{default:0};
+    end
+    initial begin
         begin
             $fsdbDumpfile("mmu_tree.fsdb"); 
             $fsdbDumpvars(0,"+all");  
             $fsdbDumpSVA(0);   
             $fsdbDumpMDA(0);  
+            $fsdbDumpClassObject("mmu_tree_tb.memory_checker","+object_level=2");
 	    end
 	end
 
@@ -561,7 +571,7 @@ module mmu_tree_tb;
     begin
         alloc_rsp rsp;
         while (1) begin
-            fetch_alloc_rsp();
+            fetch_alloc_rsp(rsp);
             memory_checker.alloc_rsp_box.put(rsp);
         end
     end
@@ -609,7 +619,7 @@ module mmu_tree_tb;
     begin
         free_rsp rsp;
         while (1) begin
-            fetch_free_rsp();
+            fetch_free_rsp(rsp);
             memory_checker.free_rsp_box.put(rsp);
         end
     end
@@ -628,7 +638,7 @@ module mmu_tree_tb;
         `FREE_EQUAL_ALLOC:
             begin
                 req.free_req_id = last_free_req_id;
-                last_alloc_req_id++;
+                last_free_req_id++;
                 if (last_free_req_id == 0) begin
                     last_free_req_id = 1;
                 end
@@ -646,7 +656,7 @@ module mmu_tree_tb;
                 `REQ_512:
                     begin
                         req.free_req_id = last_free_req_id;
-                        last_alloc_req_id++;
+                        last_free_req_id++;
                         if (last_free_req_id == 0) begin
                             last_free_req_id = 1;
                         end
@@ -660,7 +670,7 @@ module mmu_tree_tb;
                     begin
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
-                            last_alloc_req_id++;
+                            last_free_req_id++;
                             if (last_free_req_id == 0) begin
                                 last_free_req_id = 1;
                             end
@@ -675,7 +685,7 @@ module mmu_tree_tb;
                     begin
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
-                            last_alloc_req_id++;
+                            last_free_req_id++;
                             if (last_free_req_id == 0) begin
                                 last_free_req_id = 1;
                             end
@@ -690,7 +700,7 @@ module mmu_tree_tb;
                     begin
                         for (i=0; i<4; i++) begin
                             req.free_req_id = last_free_req_id;
-                            last_alloc_req_id++;
+                            last_free_req_id++;
                             if (last_free_req_id == 0) begin
                                 last_free_req_id = 1;
                             end
@@ -710,7 +720,7 @@ module mmu_tree_tb;
                 rand_invalid = $urandom_range(0,20);
                 if (rand_invalid==0||rand_invalid==20) begin
                     req.free_req_id = last_free_req_id;
-                    last_alloc_req_id++;
+                    last_free_req_id++;
                     if (last_free_req_id == 0) begin
                         last_free_req_id = 1;
                     end
@@ -726,7 +736,7 @@ module mmu_tree_tb;
                 end
                 //a correct free is need, so we generate a correct free request
                 req.free_req_id = last_free_req_id;
-                last_alloc_req_id++;
+                last_free_req_id++;
                 if (last_free_req_id == 0) begin
                     last_free_req_id = 1;
                 end
@@ -886,32 +896,35 @@ module mmu_tree_tb;
     endtask
 
     task fetch_alloc_rsp(
+        output alloc_rsp rsp
     );
         begin
-            alloc_rsp rsp;
             wait (mif.cb.alloc_rsp_fifo_not_empty == 1) @(mif.cb);
-            rsp.alloc_rsp_id <= mif.cb.alloc_rsp_id;
-            rsp.alloc_rsp_page_idx <= mif.cb.alloc_rsp_page_idx;
-            rsp.alloc_rsp_fail <= mif.cb.alloc_rsp_fail;
-            rsp.alloc_rsp_fail_reason <= mif.cb.alloc_rsp_fail_reason;
-            rsp.alloc_request_size <= 0;
-            rsp.alloc_request_aligned_size <= 0;
             mif.cb.alloc_rsp_pop <= 1; //we have read the alloc rsp, then pop it
-            alloc_rsp_box.put(rsp);
+            @(mif.cb);
+            mif.cb.alloc_rsp_pop <= 0;
+            repeat(2)@(mif.cb);
+            rsp.alloc_rsp_id = mif.cb.alloc_rsp_id;
+            rsp.alloc_rsp_page_idx = mif.cb.alloc_rsp_page_idx;
+            rsp.alloc_rsp_fail = mif.cb.alloc_rsp_fail;
+            rsp.alloc_rsp_fail_reason = mif.cb.alloc_rsp_fail_reason;
+            rsp.alloc_request_size = 0;
+            rsp.alloc_request_aligned_size = 0;
         end
     endtask
 
     task fetch_free_rsp(
+        output free_rsp rsp
     );
         begin
-            free_rsp rsp;
-
             wait (mif.cb.free_rsp_fifo_not_empty == 1)@(mif.cb);
-            rsp.free_rsp_id <= mif.cb.free_rsp_id;
-            rsp.free_rsp_fail <= mif.cb.free_rsp_fail;
-            rsp.free_rsp_fail_reason <= mif.cb.free_rsp_fail_reason;
             mif.cb.free_rsp_pop <= 1; //we have read the free rsp, then pop it
-            free_rsp_box.put(rsp);
+            @(mif.cb);
+            mif.cb.free_rsp_pop <= 0;
+            repeat(2) @(mif.cb);
+            rsp.free_rsp_id = mif.cb.free_rsp_id;
+            rsp.free_rsp_fail = mif.cb.free_rsp_fail;
+            rsp.free_rsp_fail_reason = mif.cb.free_rsp_fail_reason;
         end
     endtask
 

@@ -89,7 +89,7 @@ end
 always @(*) begin
     fdt_mask_next = fdt_mask;
 
-    if (find_success)begin
+    if (find_success && alloc_valid_dsp_in_n2)begin
         fdt_mask_next = fdt_mask | mask_out;
     end
     

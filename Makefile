@@ -1,8 +1,8 @@
 sim:
-	./simv -l sim.log +notimingcheck +nospecify -k ucli.key
+	./simv -l sim.log +notimingcheck +nospecify -k ucli.key +define+DUMP_FSDB  +fsdb+functions 
 
 verdi:
-	verdi -sv -f ./filelist.f -ssf mmu.fsdb &
+	verdi -sv -f ./filelist.f -ssf mmu_tree.fsdb &
 
 clean:
 	rm -rf simv.daidir csrc DVEfiles verdiLog *.log  *.conf *.vpd *.key *.fsdb simv *.dump
@@ -13,9 +13,10 @@ collect_error:
 compile:
 	vcs +v2k -f ./filelist.f \
 		-full64 \
+		+define+DUMP_FSDB \
 		-sverilog \
 		-timescale=1ns/1ps \
-		-debug_access+cbk \
+		-debug_access+cbk+class \
 		-debug_all \
 		-l compile.log \
 		-top mmu_tree_tb \
