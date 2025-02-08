@@ -2,7 +2,7 @@
 //!we dont need ram here, the fdt only need 256bit
 //!the kernel of this module is the mask
 `include "../src/mmu_param.vh"
-`include "../src/ram_2port.v"
+`include "../src/ram_assign.v"
 `include "../src/first_zero.v"
 
 module find_table(
@@ -88,11 +88,11 @@ end
 //!logic to update the mask_next
 always @(*) begin
     fdt_mask_next = fdt_mask;
-    if (fdt_update_valid_at_in_n2)begin //we can cancel the mask now
-        fdt_mask_next[fdt_update_idx_at_in_n2] = 1'b0;
-    end
     if (find_success && alloc_valid_dsp_in_n2)begin
         fdt_mask_next = fdt_mask | mask_out;
+    end
+    if (fdt_update_valid_at_in_n2)begin //we can cancel the mask now
+        fdt_mask_next[fdt_update_idx_at_in_n2] = 1'b0;
     end
 end
 
@@ -275,7 +275,7 @@ first_zero  first_zero_inst (
   );
 
 
-ram_2port #(
+ram_assign #(
     .ADDR_WIDTH(`FDT_ADDR_WIDTH),
     .DATA_WIDTH(`FTD_DATA_WIDTH)
 )  fdt_512 (
@@ -287,7 +287,7 @@ ram_2port #(
     .read_data(fdt_512_read_data)
 );
 
-ram_2port #(
+ram_assign #(
     .ADDR_WIDTH(`FDT_ADDR_WIDTH),
     .DATA_WIDTH(`FTD_DATA_WIDTH)
 )  fdt_1k (
@@ -299,7 +299,7 @@ ram_2port #(
     .read_data(fdt_1k_read_data)
 );
 
-ram_2port #(
+ram_assign #(
     .ADDR_WIDTH(`FDT_ADDR_WIDTH),
     .DATA_WIDTH(`FTD_DATA_WIDTH)
 )  fdt_2k (
@@ -311,7 +311,7 @@ ram_2port #(
     .read_data(fdt_2k_read_data)
 );
 
-ram_2port #(
+ram_assign #(
     .ADDR_WIDTH(`FDT_ADDR_WIDTH),
     .DATA_WIDTH(`FTD_DATA_WIDTH)
 )  fdt_4k (

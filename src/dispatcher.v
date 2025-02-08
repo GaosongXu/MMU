@@ -157,7 +157,7 @@ always @(*) begin
     case (state)
         IDLE:begin
             //in this state, we can not dispatch the request, just wait for the next round
-            if ((alloc_fifo_empty && free_fifo_empty) || (alloc_rsp_fifo_almost_full && free_rsp_fifo_almost_full)) begin
+            if ((alloc_fifo_empty && !fdt_blocked_fdt_in && free_fifo_empty) || (alloc_rsp_fifo_almost_full && free_rsp_fifo_almost_full)) begin
                 state_next = SPIN_WAIT_1;
             end else if (prev_state == ALLOC_CHECK_REQ || prev_state == ALLOC_WAIT_VALID || prev_state == ALLOC_NON_POP)begin
                 if (free_fifo_data_count >= FREE_THRESHOLD && !free_rsp_fifo_almost_full) begin
@@ -176,7 +176,7 @@ always @(*) begin
                 end else begin
                     state_next = FREE_FETCH_REQ;
                 end
-            end else if(!alloc_fifo_empty && !alloc_rsp_fifo_almost_full)begin
+            end else if((!alloc_fifo_empty||fdt_blocked_fdt_in) && !alloc_rsp_fifo_almost_full)begin
                 state_next = ALLOC_FETCH_REQ;
             end else if(!free_fifo_empty && !free_rsp_fifo_almost_full)begin
                 state_next = FREE_FETCH_REQ;

@@ -32,9 +32,10 @@ typedef struct packed{
    bit [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
 }free_rsp;
 
-`define INIT_ALLOC_REQUEST_SIZE 2048
+`define INIT_ALLOC_REQUEST_SIZE 8192
 
 class MemoryChecker;
+
 
     localparam TOTAL_MEMORY_PAGE_IDX = 32768;
 
@@ -128,9 +129,9 @@ class MemoryChecker;
         $display("total_fail_alloc_rsp:%d",total_fail_alloc_req);
         $display("total_fail_free_rsp:%d",total_fail_free_req);
         $display("page_in_use:%d",page_in_use);
-        $display("current_memory_usage:%f",current_memory_usage);
+        $display("current_memory_usage:%.2f%%",current_memory_usage*100);
         $display("page_max_in_use:%d",page_max_in_use);
-        $display("max_memory_usage:%f",max_memory_usage);
+        $display("max_memory_usage:%.2f%%",max_memory_usage*100);
         $display("diff_size_alloc_submitted_req:");
         for (int i=1; i<10; i++) begin
             $write("%5d:%5d;",i,diff_size_alloc_submitted_req[i]);
@@ -377,9 +378,14 @@ endinterface
 `define FREE_EQUAL_ALLOC 1 //equal with the alloc, no error expect,may be not aligned
 `define FREE_SPLIT_ALLOC 2 //split the alloc into more part
 `define FREE_INVALID 3 //maybe 0 or over 4k
+`define NO_FREE 4 //not free the alloc
 
 
 module mmu_tree_tb;
+
+    timeunit 1ns;       
+    timeprecision 1ps;  
+
     localparam SEED = 158;
     localparam CLK_PERIOD = 5;
     localparam MAX_REQ_SIZE = 8192;
@@ -387,8 +393,8 @@ module mmu_tree_tb;
     localparam PRESSURE_TEST = 0;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
-    localparam DEFAULT_ALLOC_MODE = `PATTERN_VALID_MIX;
-    localparam DEFAULT_FREE_MODE = `FREE_EQUAL_ALLOC;
+    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_FREE_MODE = `NO_FREE;
     localparam MAX_TIME_OUT = 1000000; //100k cycle
 
     bit clk, rst;
@@ -586,7 +592,7 @@ module mmu_tree_tb;
     task free_request_generator_thread();
     begin
         alloc_rsp rsp;
-        while (1) begin
+        while (DEFAULT_FREE_MODE!=`NO_FREE) begin
             //read from the checked_alloc_rsp_box, generate the free request
             checked_alloc_rsp_box.get(rsp);
             free_request_generator(rsp,DEFAULT_FREE_MODE);
