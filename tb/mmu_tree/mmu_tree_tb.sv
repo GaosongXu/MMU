@@ -155,10 +155,12 @@ class MemoryChecker;
         bit fail_rsp;
         integer tree_idx_start;
         integer tree_idx_end;
+        integer total_rsp_get = 0;
 
         while (1) begin
             fail_rsp = 0;
             alloc_rsp_box.get(rsp);
+            total_rsp_get++;
             alloc_req_map_samaphore.get();
             req = alloc_req_map[rsp.alloc_rsp_id];
             alloc_req_map_samaphore.put();
@@ -393,7 +395,7 @@ module mmu_tree_tb;
     localparam PRESSURE_TEST = 0;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
-    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MAY_INVALID_MIX;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
     localparam MAX_TIME_OUT = 1000000; //100k cycle
 
@@ -524,7 +526,7 @@ module mmu_tree_tb;
     task memory_checker_report_thread();
     begin
         bit over;
-        repeat(50) @(mif.cb);
+        repeat(200) @(mif.cb);
         while (1) begin
             memory_checker.print_static_thread(over);
             if (over || $time > MAX_TIME_OUT) begin
@@ -563,17 +565,17 @@ module mmu_tree_tb;
                 continue;
             end
             req = alloc_req_fifo.pop_front();
+            memory_checker.register_alloc_req(req);
             alloc_req_fifo_semaphore.put();
             wait(mif.cb.alloc_req_fifo_full == 0) @(mif.cb);
             mif.cb.alloc_req_submit <= 1;
             mif.cb.alloc_req_id <= req.alloc_req_id;
             mif.cb.alloc_req_page_count <= req.alloc_req_page_count;
-            memory_checker.register_alloc_req(req);
             @(mif.cb);
             mif.cb.alloc_req_submit <= 0;//submit keep 1 cycle
 
             //wait 3 cycle to generate the free request
-            repeat(3) @(mif.cb);
+            repeat(1) @(mif.cb);
         end
     end
     endtask
@@ -613,18 +615,18 @@ module mmu_tree_tb;
                 continue;
             end
             req = free_req_fifo.pop_front();
+            memory_checker.register_free_req(req);
             free_req_fifo_semaphore.put();
             wait(mif.cb.free_req_fifo_full == 0) @(mif.cb);
             mif.cb.free_req_submit <= 1;
             mif.cb.free_req_id <= req.free_req_id;
             mif.cb.free_req_page_idx <= req.free_req_page_idx;
             mif.cb.free_req_page_count <= req.free_req_page_count;
-            memory_checker.register_free_req(req);
             @(mif.cb);
             mif.cb.free_req_submit <= 0;//submit keep 1 cycle
 
             //wait 3 cycle to generate the alloc request
-            repeat(3) @(mif.cb);
+            repeat(1) @(mif.cb);
         end
     end
     endtask
@@ -873,7 +875,7 @@ module mmu_tree_tb;
     task  generate_alloc_request_fifo_random(
         input integer total_size,
         input bit can_be_invalid = 0,
-        input bit can_not_aligned = 0
+        input bit can_be_not_aligned = 0
     );
         begin
             integer i,j;
@@ -888,7 +890,7 @@ module mmu_tree_tb;
                 end
 
                 //here generate the random page count
-                if (can_not_aligned) begin
+                if (can_be_not_aligned) begin
                     random_page_count = $urandom_range(1,8);
                 end else begin
                     random_page_count = 1 << $urandom_range(0,3);
@@ -902,6 +904,7 @@ module mmu_tree_tb;
                         random_page_count = 9; //over 4k
                     end
                 end
+                req.alloc_req_page_count = random_page_count;
                 alloc_req_fifo_semaphore.get();
                 alloc_req_fifo.push_back(req);
                 alloc_req_fifo_semaphore.put();

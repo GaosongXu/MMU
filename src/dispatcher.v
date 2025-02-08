@@ -127,7 +127,7 @@ reg alloc_free_switch,alloc_free_switch_next;
 reg free_alloc_switch,free_alloc_switch_next;
 reg [2:0] free_waiting_count,free_waiting_count_next;
 reg [2:0] alloc_waiting_count,alloc_waiting_count_next;
-
+reg invalid_req_meet,invalid_req_meet_next;
 
 //************************************ combinational logic
 always @(*) begin
@@ -153,6 +153,7 @@ always @(*) begin
     alloc_req_size_fdt_out_next = alloc_req_size_fdt_out;
     alloc_req_id_fdt_out_next = alloc_req_id_fdt_out;
     alloc_req_valid_fdt_out_next = 0;
+    invalid_req_meet_next = 0;
 
     case (state)
         IDLE:begin
@@ -196,6 +197,7 @@ always @(*) begin
                 free_rsp_fail_next = 1;
                 free_rsp_fail_reason_next = free_req_page_count ==0 ? `FREE_FAIL_REASON_EQUAL_ZERO : `FREE_FAIL_REASON_OVER_4KB;
                 free_rsp_id_next = free_req_id;
+                invalid_req_meet_next = 1;
             end else begin
                 //2. aligned the page size
                 case (free_req_page_count)
@@ -225,8 +227,13 @@ always @(*) begin
             //wait for a counter here, if counter equal 5,change to idle,and reset the counter
             //make free_req_valid_or_tree_out_next high
             free_waiting_count_next = free_waiting_count + 1;
+            invalid_req_meet_next = invalid_req_meet;
             if (free_waiting_count == FREE_WAIT_VALID_COUNT) begin
-                free_req_valid_or_tree_out_next = 1;
+                if (invalid_req_meet) begin
+                    free_req_valid_or_tree_out_next = 0;
+                end else begin
+                    free_req_valid_or_tree_out_next = 1;
+                end
                 free_waiting_count_next = 0;
                 state_next = IDLE;
             end else begin
@@ -261,6 +268,7 @@ always @(*) begin
                 alloc_rsp_fail_next = 1;
                 alloc_rsp_fail_reason_next = alloc_req_page_count ==0 ? `ALLOC_FAIL_REASON_EQUAL_ZERO : `ALLOC_FAIL_REASON_OVER_4KB;
                 alloc_rsp_id_next = alloc_req_id;
+                invalid_req_meet_next = 1;
             end else begin
                 //2. aligned the page size
                 case (alloc_req_page_count)
@@ -274,18 +282,25 @@ always @(*) begin
                     8:alloc_req_size_fdt_out_next = `REQ_4K;
                 endcase
                 alloc_req_id_fdt_out_next = alloc_req_id;
+                if(!free_alloc_switch) begin
+                    alloc_req_valid_fdt_out_next = 1;
+                end
             end            
             if (free_alloc_switch) begin
                 state_next = ALLOC_WAIT_VALID;
             end else begin
-                alloc_req_valid_fdt_out_next = 1; //dont care about block, just try to alloc again
                 state_next = IDLE;
             end
         end
         ALLOC_WAIT_VALID:begin
             alloc_waiting_count_next =  alloc_waiting_count + 1;
+            invalid_req_meet_next = invalid_req_meet;
             if ( alloc_waiting_count == ALLOC_WAIT_VALID_COUNT) begin
-                alloc_req_valid_fdt_out_next = 1;  
+                if (invalid_req_meet) begin
+                    alloc_req_valid_fdt_out_next = 0;
+                end else begin
+                    alloc_req_valid_fdt_out_next = 1;  
+                end
                 alloc_waiting_count_next = 0;
                 state_next = IDLE;
             end else begin
@@ -331,6 +346,7 @@ always @(posedge clk or negedge rst_n) begin
         free_alloc_switch <= 0;
         free_waiting_count <= 0;
         alloc_waiting_count <= 0;
+        invalid_req_meet <= 0;
     end else begin
         alloc_req_valid_fdt_out <= alloc_req_valid_fdt_out_next;
         alloc_req_id_fdt_out <= alloc_req_id_fdt_out_next;
@@ -354,6 +370,7 @@ always @(posedge clk or negedge rst_n) begin
         free_alloc_switch <= free_alloc_switch_next;
         free_waiting_count <= free_waiting_count_next;
         alloc_waiting_count <= alloc_waiting_count_next;
+        invalid_req_meet <= invalid_req_meet_next;
     end
 end
 
