@@ -163,7 +163,7 @@ always @(*) begin
                 if (free_fifo_data_count >= FREE_THRESHOLD && !free_rsp_fifo_almost_full) begin
                     alloc_free_switch_next = 1;
                     state_next = FREE_FETCH_REQ;
-                end else if (fdt_blocked_fdt_in && !free_fifo_empty && !free_rsp_fifo_almost_full) begin
+                end else if ((fdt_blocked_fdt_in || alloc_fifo_empty|| alloc_rsp_fifo_almost_full ) && !free_fifo_empty && !free_rsp_fifo_almost_full) begin
                     alloc_free_switch_next = 1;
                     state_next = FREE_FETCH_REQ;
                 end else begin
@@ -249,7 +249,7 @@ always @(*) begin
             if (fdt_blocked_fdt_in && !free_alloc_switch) begin
                 alloc_req_valid_fdt_out_next = 1;
             end 
-            if (free_alloc_switch) begin
+            if (fdt_blocked_fdt_in && free_alloc_switch ) begin
                 state_next = ALLOC_WAIT_VALID;
             end else begin
                 state_next = IDLE;
@@ -285,10 +285,7 @@ always @(*) begin
         ALLOC_WAIT_VALID:begin
             alloc_waiting_count_next =  alloc_waiting_count + 1;
             if ( alloc_waiting_count == ALLOC_WAIT_VALID_COUNT) begin
-                //make 1
-                if(prev_state == ALLOC_CHECK_REQ || (prev_state==ALLOC_NON_POP && fdt_blocked_fdt_in) )begin
-                    alloc_req_valid_fdt_out_next = 1;  
-                end
+                alloc_req_valid_fdt_out_next = 1;  
                 alloc_waiting_count_next = 0;
                 state_next = IDLE;
             end else begin
