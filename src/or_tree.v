@@ -81,7 +81,7 @@ wire [`OR_TREE_BIT_WIDTH-1:0] read_data2;
 //!store the idx of the tree node ,return the idx to the user
 reg [3:0] magic_alloc_page_idx;
 reg [2:0] alloc_page_idx_next,alloc_page_idx;
-reg [3:0] free_tree_idx;
+reg [3:0] magic_free_tree_idx;
 //!the error signal when we meet some error that wrong
 reg alloc_error_meet_next,alloc_error_meet;
 reg free_error_meet_next,free_error_meet;
@@ -218,7 +218,7 @@ always @(*) begin
             `REQ_2K:begin
              casez(read_data1[13:12])
                 2'b0?: begin magic_alloc_page_idx = 4'h1; alloc_page_idx_next = 3'h0; end
-                2'b?0: begin magic_alloc_page_idx = 4'h2; alloc_page_idx_next = 3'h3; end
+                2'b?0: begin magic_alloc_page_idx = 4'h2; alloc_page_idx_next = 3'h4; end
              default: alloc_error_meet_next = 1'b1;
             endcase
         end 
@@ -263,48 +263,48 @@ always @(*) begin
     free_write_en_next = 1'b0;
     free_write_data_next = 0;
     free_error_meet_next = 1'b0;
-    free_tree_idx = 4'h0; //use to calculate the magic number
+    magic_free_tree_idx = 4'h0; //use to calculate the magic number
     if (free_valid_n1) begin
        case (free_size_n1)
        `REQ_4K:begin
            if (free_page_index_n1[2:0] == 3'b0 && full_4k) begin
                free_error_meet_next = 1'b0;
-               free_tree_idx = 4'h0;
+               magic_free_tree_idx = 4'h0;
            end else begin
                free_error_meet_next = 1'b1;
            end
        end
        `REQ_2K :begin
             case (free_page_index_n1[2:0])
-                3'b000: begin free_error_meet_next = ~full_2k_1; free_tree_idx=4'h1;end
-                3'b100: begin free_error_meet_next = ~full_2k_2; free_tree_idx=4'h2;end
+                3'b000: begin free_error_meet_next = ~full_2k_1; magic_free_tree_idx=4'h1;end
+                3'b100: begin free_error_meet_next = ~full_2k_2; magic_free_tree_idx=4'h2;end
                 default: free_error_meet_next = 1'b1;
             endcase
        end
        `REQ_1K:
             case (free_page_index_n1[2:0])
-                3'b000: begin free_error_meet_next = ~full_1k_1; free_tree_idx=4'h3;end
-                3'b010: begin free_error_meet_next = ~full_1k_2; free_tree_idx=4'h4;end
-                3'b100: begin free_error_meet_next = ~full_1k_3; free_tree_idx=4'h5;end
-                3'b110: begin free_error_meet_next = ~full_1k_4; free_tree_idx=4'h6;end
+                3'b000: begin free_error_meet_next = ~full_1k_1; magic_free_tree_idx=4'h3;end
+                3'b010: begin free_error_meet_next = ~full_1k_2; magic_free_tree_idx=4'h4;end
+                3'b100: begin free_error_meet_next = ~full_1k_3; magic_free_tree_idx=4'h5;end
+                3'b110: begin free_error_meet_next = ~full_1k_4; magic_free_tree_idx=4'h6;end
                 default: free_error_meet_next = 1'b1;
             endcase
        `REQ_512:
             case (free_page_index_n1[2:0]) //no default
-                3'h0:begin free_error_meet_next = ~read_data2[7]; free_tree_idx=4'h7;end
-                3'h1:begin free_error_meet_next = ~read_data2[6]; free_tree_idx=4'h8;end
-                3'h2:begin free_error_meet_next = ~read_data2[5]; free_tree_idx=4'h9;end
-                3'h3:begin free_error_meet_next = ~read_data2[4]; free_tree_idx=4'ha;end
-                3'h4:begin free_error_meet_next = ~read_data2[3]; free_tree_idx=4'hb;end
-                3'h5:begin free_error_meet_next = ~read_data2[2]; free_tree_idx=4'hc;end
-                3'h6:begin free_error_meet_next = ~read_data2[1]; free_tree_idx=4'hd;end
-                3'h7:begin free_error_meet_next = ~read_data2[0]; free_tree_idx=4'he;end
+                3'h0:begin free_error_meet_next = ~read_data2[7]; magic_free_tree_idx=4'h7;end
+                3'h1:begin free_error_meet_next = ~read_data2[6]; magic_free_tree_idx=4'h8;end
+                3'h2:begin free_error_meet_next = ~read_data2[5]; magic_free_tree_idx=4'h9;end
+                3'h3:begin free_error_meet_next = ~read_data2[4]; magic_free_tree_idx=4'ha;end
+                3'h4:begin free_error_meet_next = ~read_data2[3]; magic_free_tree_idx=4'hb;end
+                3'h5:begin free_error_meet_next = ~read_data2[2]; magic_free_tree_idx=4'hc;end
+                3'h6:begin free_error_meet_next = ~read_data2[1]; magic_free_tree_idx=4'hd;end
+                3'h7:begin free_error_meet_next = ~read_data2[0]; magic_free_tree_idx=4'he;end
                 default: free_error_meet_next = 1'b1;
             endcase
        endcase
         if(!free_error_meet_next)begin
             free_write_en_next = 1'b1;
-            free_write_data_next = free_magic[free_tree_idx] & read_data2;
+            free_write_data_next = free_magic[magic_free_tree_idx] & read_data2;
         end
     end
 end

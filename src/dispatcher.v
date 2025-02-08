@@ -47,16 +47,19 @@ module dispatcher  #(
 );
 //************************************ parameters
 //we need 1 idle, 3 free state, 2 alloc state, 2 spin state, use one hot encoding
-localparam  IDLE           = 8'b00000001;
-localparam  FREE_FETCH_REQ = 8'b00000010;
-localparam  FREE_CHECK_REQ = 8'b00000100;
-localparam  FREE_WAIT_VALID= 8'b00001000;
-localparam  ALLOC_FETCH_REQ= 8'b00010000;
-localparam  ALLOC_CHECK_REQ= 8'b00100000;
-localparam  SPIN_WAIT_1    = 8'b01000000;
-localparam  SPIN_WAIT_2    = 8'b10000000;
+localparam  IDLE           = 4'd1;
+localparam  FREE_FETCH_REQ = 4'd2;
+localparam  FREE_CHECK_REQ = 4'd3;
+localparam  FREE_WAIT_VALID= 4'd4;
+localparam  ALLOC_FETCH_REQ= 4'd5;
+localparam  ALLOC_CHECK_REQ= 4'd6;
+localparam  ALLOC_NON_POP  = 4'd9;
+localparam  ALLOC_WAIT_VALID = 4'd10;
+localparam  SPIN_WAIT_1    = 4'd7;
+localparam  SPIN_WAIT_2    = 4'd8;
 
 localparam  FREE_WAIT_VALID_COUNT = 5;
+localparam  ALLOC_WAIT_VALID_COUNT = 6; //more than 1 cycle
 
 //************************************ ports
 input clk;
@@ -118,16 +121,19 @@ reg [`REQ_ID_WIDTH-1:0] free_rsp_id, free_rsp_id_next;
 reg free_rsp_fail, free_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason, free_rsp_fail_reason_next;
 
-reg [7:0] prev_state,state, state_next;
+reg [3:0] prev_state,state, state_next;
 
 reg alloc_free_switch,alloc_free_switch_next;
+reg free_alloc_switch,free_alloc_switch_next;
 reg [2:0] free_waiting_count,free_waiting_count_next;
+reg [2:0] alloc_waiting_count,alloc_waiting_count_next;
 
 
 //************************************ combinational logic
 always @(*) begin
     state_next = state;
     alloc_free_switch_next = 0;
+    free_alloc_switch_next = 0;
     free_req_pop = 0;
     free_rsp_write_en_next = 0;
     free_rsp_fail_next = 0;
@@ -138,6 +144,7 @@ always @(*) begin
     free_req_page_idx_or_tree_out_next = free_req_page_idx_or_tree_out; 
     free_req_valid_or_tree_out_next = 0;
     free_waiting_count_next = free_waiting_count;
+    alloc_waiting_count_next = alloc_waiting_count;
     alloc_req_pop = 0;
     alloc_rsp_write_en_next = 0;
     alloc_rsp_fail_next = 0;
@@ -149,9 +156,10 @@ always @(*) begin
 
     case (state)
         IDLE:begin
-            if (alloc_fifo_empty && free_fifo_empty && alloc_rsp_fifo_almost_full && free_rsp_fifo_almost_full) begin
+            //in this state, we can not dispatch the request, just wait for the next round
+            if ((alloc_fifo_empty && free_fifo_empty) || (alloc_rsp_fifo_almost_full && free_rsp_fifo_almost_full)) begin
                 state_next = SPIN_WAIT_1;
-            end else if (prev_state == ALLOC_CHECK_REQ )begin
+            end else if (prev_state == ALLOC_CHECK_REQ || prev_state == ALLOC_WAIT_VALID || prev_state == ALLOC_NON_POP)begin
                 if (free_fifo_data_count >= FREE_THRESHOLD && !free_rsp_fifo_almost_full) begin
                     alloc_free_switch_next = 1;
                     state_next = FREE_FETCH_REQ;
@@ -163,6 +171,7 @@ always @(*) begin
                 end
             end else if (prev_state == FREE_CHECK_REQ || prev_state == FREE_WAIT_VALID)begin
                 if (free_fifo_empty || free_rsp_fifo_almost_full) begin
+                    free_alloc_switch_next = 1; //switch to alloc
                     state_next = ALLOC_FETCH_REQ;
                 end else begin
                     state_next = FREE_FETCH_REQ;
@@ -220,40 +229,71 @@ always @(*) begin
                 free_req_valid_or_tree_out_next = 1;
                 free_waiting_count_next = 0;
                 state_next = IDLE;
+            end else begin
+                state_next = FREE_WAIT_VALID;
             end
-            state_next = FREE_WAIT_VALID;
         end
         ALLOC_FETCH_REQ:begin
-            //check if blocked
-            if(!fdt_blocked_fdt_in) begin
+            //we can pop new only we not block and the alloc fifo not empty
+            free_alloc_switch_next = free_alloc_switch; //keep the switch
+            if(!fdt_blocked_fdt_in && !alloc_fifo_empty && !alloc_rsp_fifo_almost_full) begin
                 alloc_req_pop = 1;
+                state_next = ALLOC_CHECK_REQ;
+            end else begin
+                //we can not pop any more
+                state_next = ALLOC_NON_POP;
+            end
+        end
+        ALLOC_NON_POP:begin
+           //we dont pop in last state, just check the block signal
+            if (fdt_blocked_fdt_in && !free_alloc_switch) begin
+                alloc_req_valid_fdt_out_next = 1;
             end 
-            state_next = ALLOC_CHECK_REQ;
+            if (free_alloc_switch) begin
+                state_next = ALLOC_WAIT_VALID;
+            end else begin
+                state_next = IDLE;
+            end
         end
         ALLOC_CHECK_REQ:begin
-            if(!fdt_blocked_fdt_in)begin // we have pop the new request in last state
-                if (alloc_req_page_count > 8 || alloc_req_page_count == 0) begin
-                    alloc_rsp_write_en_next = 1;
-                    alloc_rsp_fail_next = 1;
-                    alloc_rsp_fail_reason_next = alloc_req_page_count ==0 ? `ALLOC_FAIL_REASON_EQUAL_ZERO : `ALLOC_FAIL_REASON_OVER_4KB;
-                    alloc_rsp_id_next = alloc_req_id;
-                end else begin
-                    //2. aligned the page size
-                    case (alloc_req_page_count)
-                        1:alloc_req_size_fdt_out_next = `REQ_512;
-                        2:alloc_req_size_fdt_out_next = `REQ_1K;
-                        3:alloc_req_size_fdt_out_next = `REQ_2K;
-                        4:alloc_req_size_fdt_out_next = `REQ_2K;
-                        5:alloc_req_size_fdt_out_next = `REQ_4K;
-                        6:alloc_req_size_fdt_out_next = `REQ_4K;
-                        7:alloc_req_size_fdt_out_next = `REQ_4K;
-                        8:alloc_req_size_fdt_out_next = `REQ_4K;
-                    endcase
-                    alloc_req_id_fdt_out_next = alloc_req_id;
-                end
+            if (alloc_req_page_count > 8 || alloc_req_page_count == 0) begin
+                alloc_rsp_write_en_next = 1;
+                alloc_rsp_fail_next = 1;
+                alloc_rsp_fail_reason_next = alloc_req_page_count ==0 ? `ALLOC_FAIL_REASON_EQUAL_ZERO : `ALLOC_FAIL_REASON_OVER_4KB;
+                alloc_rsp_id_next = alloc_req_id;
+            end else begin
+                //2. aligned the page size
+                case (alloc_req_page_count)
+                    1:alloc_req_size_fdt_out_next = `REQ_512;
+                    2:alloc_req_size_fdt_out_next = `REQ_1K;
+                    3:alloc_req_size_fdt_out_next = `REQ_2K;
+                    4:alloc_req_size_fdt_out_next = `REQ_2K;
+                    5:alloc_req_size_fdt_out_next = `REQ_4K;
+                    6:alloc_req_size_fdt_out_next = `REQ_4K;
+                    7:alloc_req_size_fdt_out_next = `REQ_4K;
+                    8:alloc_req_size_fdt_out_next = `REQ_4K;
+                endcase
+                alloc_req_id_fdt_out_next = alloc_req_id;
+            end            
+            if (free_alloc_switch) begin
+                state_next = ALLOC_WAIT_VALID;
+            end else begin
+                alloc_req_valid_fdt_out_next = 1; //dont care about block, just try to alloc again
+                state_next = IDLE;
             end
-            alloc_req_valid_fdt_out_next = 1; //dont care about block, just try to alloc again
-            state_next = IDLE;
+        end
+        ALLOC_WAIT_VALID:begin
+            alloc_waiting_count_next =  alloc_waiting_count + 1;
+            if ( alloc_waiting_count == ALLOC_WAIT_VALID_COUNT) begin
+                //make 1
+                if(prev_state == ALLOC_CHECK_REQ || (prev_state==ALLOC_NON_POP && fdt_blocked_fdt_in) )begin
+                    alloc_req_valid_fdt_out_next = 1;  
+                end
+                alloc_waiting_count_next = 0;
+                state_next = IDLE;
+            end else begin
+                state_next = ALLOC_WAIT_VALID;
+            end
         end
         SPIN_WAIT_1:begin
             state_next = SPIN_WAIT_2; //just gap one cycle
@@ -291,7 +331,9 @@ always @(posedge clk or negedge rst_n) begin
         state <= IDLE;
         prev_state <= IDLE;
         alloc_free_switch <= 0;
+        free_alloc_switch <= 0;
         free_waiting_count <= 0;
+        alloc_waiting_count <= 0;
     end else begin
         alloc_req_valid_fdt_out <= alloc_req_valid_fdt_out_next;
         alloc_req_id_fdt_out <= alloc_req_id_fdt_out_next;
@@ -312,7 +354,9 @@ always @(posedge clk or negedge rst_n) begin
         state <= state_next;
         prev_state <= state;
         alloc_free_switch <= alloc_free_switch_next;
+        free_alloc_switch <= free_alloc_switch_next;
         free_waiting_count <= free_waiting_count_next;
+        alloc_waiting_count <= alloc_waiting_count_next;
     end
 end
 

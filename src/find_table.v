@@ -88,13 +88,11 @@ end
 //!logic to update the mask_next
 always @(*) begin
     fdt_mask_next = fdt_mask;
-
-    if (find_success && alloc_valid_dsp_in_n2)begin
-        fdt_mask_next = fdt_mask | mask_out;
-    end
-    
     if (fdt_update_valid_at_in_n2)begin //we can cancel the mask now
         fdt_mask_next[fdt_update_idx_at_in_n2] = 1'b0;
+    end
+    if (find_success && alloc_valid_dsp_in_n2)begin
+        fdt_mask_next = fdt_mask | mask_out;
     end
 end
 

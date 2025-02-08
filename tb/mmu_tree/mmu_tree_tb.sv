@@ -1,3 +1,5 @@
+//@Author:GaoSong Xu
+//!This is the testbench for the mmu_tree module, we will generate the alloc request and free request, and check the memory usage
 
 `include "../../src/mmu_top.v"
 `include "../../src/mmu_param.vh"
@@ -131,12 +133,12 @@ class MemoryChecker;
         $display("max_memory_usage:%f",max_memory_usage);
         $display("diff_size_alloc_submitted_req:");
         for (int i=1; i<10; i++) begin
-            $write("%d:%d ;",i,diff_size_alloc_submitted_req[i]);
+            $write("%5d:%5d;",i,diff_size_alloc_submitted_req[i]);
         end
         $display("");
         $display("diff_size_free_submitted_req:");
         for (int i=1; i<10; i++) begin
-            $write("%d:%d ;",i,diff_size_free_submitted_req[i]);
+            $write("%5d:%5d;",i,diff_size_free_submitted_req[i]);
         end
         $display("");
         over = (on_flight_alloc_req==0 && on_flight_free_req==0 && (total_success_alloc_req+total_fail_alloc_req)==`INIT_ALLOC_REQUEST_SIZE
@@ -387,7 +389,7 @@ module mmu_tree_tb;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam DEFAULT_ALLOC_MODE = `PATTERN_VALID_MIX;
     localparam DEFAULT_FREE_MODE = `FREE_EQUAL_ALLOC;
-    localparam MAX_TIME_OUT = 100000; //10k cycle
+    localparam MAX_TIME_OUT = 1000000; //100k cycle
 
     bit clk, rst;
     
@@ -563,6 +565,9 @@ module mmu_tree_tb;
             memory_checker.register_alloc_req(req);
             @(mif.cb);
             mif.cb.alloc_req_submit <= 0;//submit keep 1 cycle
+
+            //wait 3 cycle to generate the free request
+            repeat(3) @(mif.cb);
         end
     end
     endtask
@@ -611,6 +616,9 @@ module mmu_tree_tb;
             memory_checker.register_free_req(req);
             @(mif.cb);
             mif.cb.free_req_submit <= 0;//submit keep 1 cycle
+
+            //wait 3 cycle to generate the alloc request
+            repeat(3) @(mif.cb);
         end
     end
     endtask
@@ -626,7 +634,7 @@ module mmu_tree_tb;
     endtask
     
 
-    task automatic free_request_generator(
+    task  free_request_generator(
         input alloc_rsp rsp,
         input integer free_mode
     );
@@ -796,7 +804,7 @@ module mmu_tree_tb;
                 end
             endcase
         end        
-    endtask //automatic
+    endtask 
 
 
     //generate the fix pattern alloc request and push into the fifo
