@@ -143,7 +143,7 @@ end
 always @(*) begin
     alloc_tree_index_ort_out = 0;
     if (alloc_valid_fdt_in_n3)begin
-        alloc_tree_index_ort_out = alloc_pos_fdt_in_n3<<6 + (pos_out-1);
+        alloc_tree_index_ort_out = (alloc_pos_fdt_in_n3<<6) + pos_out - 1'b1;
     end
 end
 

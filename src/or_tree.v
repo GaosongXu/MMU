@@ -79,8 +79,9 @@ wire [`OR_TREE_BIT_WIDTH-1:0] read_data2;
 
 
 //!store the idx of the tree node ,return the idx to the user
+reg [3:0] magic_alloc_page_idx;
 reg [2:0] alloc_page_idx_next,alloc_page_idx;
-reg [2:0] free_tree_idx_next,free_tree_idx;
+reg [3:0] free_tree_idx;
 //!the error signal when we meet some error that wrong
 reg alloc_error_meet_next,alloc_error_meet;
 reg free_error_meet_next,free_error_meet;
@@ -204,48 +205,49 @@ always @(*) begin
     alloc_write_en_next = 1'b0;
     alloc_write_data_next = 0;
     alloc_error_meet_next = 1'b0;
+    magic_alloc_page_idx = 4'b0;
     alloc_page_idx_next = 3'b0;
     if (alloc_valid_n1) begin
         case (alloc_size_n1)
         `REQ_4K:begin
             case (read_data1[14])
-                1'b0: alloc_page_idx_next = 3'h0;
+                1'b0: begin magic_alloc_page_idx = 4'h0; alloc_page_idx_next = 3'h0; end
                 default: alloc_error_meet_next = 1'b1;
             endcase                
             end
             `REQ_2K:begin
              casez(read_data1[13:12])
-                2'b0?: alloc_page_idx_next = 3'h0;
-                2'b?0: alloc_page_idx_next = 3'h4;
+                2'b0?: begin magic_alloc_page_idx = 4'h1; alloc_page_idx_next = 3'h0; end
+                2'b?0: begin magic_alloc_page_idx = 4'h2; alloc_page_idx_next = 3'h3; end
              default: alloc_error_meet_next = 1'b1;
             endcase
         end 
         `REQ_1K:begin 
             casez (read_data1[11:8])
-                4'b0??? : alloc_page_idx_next = 3'h0;
-                4'b?0?? : alloc_page_idx_next = 3'h2;
-                4'b??0? : alloc_page_idx_next = 3'h4;
-                4'b???0 : alloc_page_idx_next = 3'h6;         
+                4'b0??? :begin magic_alloc_page_idx = 4'h3; alloc_page_idx_next = 3'h0; end
+                4'b?0?? :begin magic_alloc_page_idx = 4'h4; alloc_page_idx_next = 3'h2; end
+                4'b??0? :begin magic_alloc_page_idx = 4'h5; alloc_page_idx_next = 3'h4; end
+                4'b???0 :begin magic_alloc_page_idx = 4'h6; alloc_page_idx_next = 3'h6; end         
             default: alloc_error_meet_next = 1'b1;
             endcase
         end 
         `REQ_512:begin
             casez (read_data1[7:0])
-                8'b0??????? : alloc_page_idx_next = 3'h0; 
-                8'b?0?????? : alloc_page_idx_next = 3'h1; 
-                8'b??0????? : alloc_page_idx_next = 3'h2;
-                8'b???0???? : alloc_page_idx_next = 3'h3;
-                8'b????0??? : alloc_page_idx_next = 3'h4;
-                8'b?????0?? : alloc_page_idx_next = 3'h5;
-                8'b??????0? : alloc_page_idx_next = 3'h6;
-                8'b???????0 : alloc_page_idx_next = 3'h7;
+                8'b0??????? :begin magic_alloc_page_idx = 4'h7; alloc_page_idx_next = 3'h0; end 
+                8'b?0?????? :begin magic_alloc_page_idx = 4'h8; alloc_page_idx_next = 3'h1; end 
+                8'b??0????? :begin magic_alloc_page_idx = 4'h9; alloc_page_idx_next = 3'h2; end
+                8'b???0???? :begin magic_alloc_page_idx = 4'ha; alloc_page_idx_next = 3'h3; end
+                8'b????0??? :begin magic_alloc_page_idx = 4'hb; alloc_page_idx_next = 3'h4; end
+                8'b?????0?? :begin magic_alloc_page_idx = 4'hc; alloc_page_idx_next = 3'h5; end
+                8'b??????0? :begin magic_alloc_page_idx = 4'hd; alloc_page_idx_next = 3'h6; end
+                8'b???????0 :begin magic_alloc_page_idx = 4'he; alloc_page_idx_next = 3'h7; end
             default: alloc_error_meet_next = 1'b1;
             endcase
         end
         endcase
         if (alloc_error_meet_next == 1'b0) begin
             alloc_write_en_next = 1'b1;
-            alloc_write_data_next = alloc_magic[alloc_page_idx_next] | read_data1;
+            alloc_write_data_next = alloc_magic[magic_alloc_page_idx] | read_data1;
         end 
     end
 end
@@ -261,47 +263,48 @@ always @(*) begin
     free_write_en_next = 1'b0;
     free_write_data_next = 0;
     free_error_meet_next = 1'b0;
-    free_tree_idx_next = free_page_index_n1[2:0];
+    free_tree_idx = 4'h0; //use to calculate the magic number
     if (free_valid_n1) begin
        case (free_size_n1)
        `REQ_4K:begin
-           if (free_tree_idx_next == 3'b0 && full_4k) begin
+           if (free_page_index_n1[2:0] == 3'b0 && full_4k) begin
                free_error_meet_next = 1'b0;
+               free_tree_idx = 4'h0;
            end else begin
                free_error_meet_next = 1'b1;
            end
        end
        `REQ_2K :begin
-            case (free_tree_idx_next)
-                3'b000: free_error_meet_next = ~full_2k_1;
-                3'b100: free_error_meet_next = ~full_2k_2;
+            case (free_page_index_n1[2:0])
+                3'b000: begin free_error_meet_next = ~full_2k_1; free_tree_idx=4'h1;end
+                3'b100: begin free_error_meet_next = ~full_2k_2; free_tree_idx=4'h2;end
                 default: free_error_meet_next = 1'b1;
             endcase
        end
        `REQ_1K:
-            case (free_tree_idx_next)
-                3'b000: free_error_meet_next = ~full_1k_1;
-                3'b010: free_error_meet_next = ~full_1k_2;
-                3'b100: free_error_meet_next = ~full_1k_3;
-                3'b110: free_error_meet_next = ~full_1k_4;
+            case (free_page_index_n1[2:0])
+                3'b000: begin free_error_meet_next = ~full_1k_1; free_tree_idx=4'h3;end
+                3'b010: begin free_error_meet_next = ~full_1k_2; free_tree_idx=4'h4;end
+                3'b100: begin free_error_meet_next = ~full_1k_3; free_tree_idx=4'h5;end
+                3'b110: begin free_error_meet_next = ~full_1k_4; free_tree_idx=4'h6;end
                 default: free_error_meet_next = 1'b1;
             endcase
        `REQ_512:
-            case (free_tree_idx_next) //no default
-                3'h0: free_error_meet_next = ~read_data2[7];
-                3'h1: free_error_meet_next = ~read_data2[6];
-                3'h2: free_error_meet_next = ~read_data2[5];
-                3'h3: free_error_meet_next = ~read_data2[4];
-                3'h4: free_error_meet_next = ~read_data2[3];
-                3'h5: free_error_meet_next = ~read_data2[2];
-                3'h6: free_error_meet_next = ~read_data2[1];
-                3'h7: free_error_meet_next = ~read_data2[0];
+            case (free_page_index_n1[2:0]) //no default
+                3'h0:begin free_error_meet_next = ~read_data2[7]; free_tree_idx=4'h7;end
+                3'h1:begin free_error_meet_next = ~read_data2[6]; free_tree_idx=4'h8;end
+                3'h2:begin free_error_meet_next = ~read_data2[5]; free_tree_idx=4'h9;end
+                3'h3:begin free_error_meet_next = ~read_data2[4]; free_tree_idx=4'ha;end
+                3'h4:begin free_error_meet_next = ~read_data2[3]; free_tree_idx=4'hb;end
+                3'h5:begin free_error_meet_next = ~read_data2[2]; free_tree_idx=4'hc;end
+                3'h6:begin free_error_meet_next = ~read_data2[1]; free_tree_idx=4'hd;end
+                3'h7:begin free_error_meet_next = ~read_data2[0]; free_tree_idx=4'he;end
                 default: free_error_meet_next = 1'b1;
             endcase
        endcase
         if(!free_error_meet_next)begin
             free_write_en_next = 1'b1;
-            free_write_data_next = free_magic[free_tree_idx_next] & read_data2;
+            free_write_data_next = free_magic[free_tree_idx] & read_data2;
         end
     end
 end
@@ -313,7 +316,7 @@ always @(*) begin
     write_data = 0;
     if(alloc_valid_n2 && !alloc_error_meet ) begin
         write_en = alloc_write_en;
-        write_addr = alloc_id_n2;
+        write_addr = alloc_tree_index_n2;
         write_data = alloc_write_data;
     end else if(free_valid_n2 && !free_error_meet) begin
         write_en = free_write_en;
@@ -341,7 +344,7 @@ always @(*)begin
             alloc_rsp_fail_next = 1'b1;
             alloc_rsp_fail_reason_next = `ALLOC_FAIL_REASON_UNKNOWN_INTERNAL_ERROR;
         end else begin
-            alloc_rsp_page_idx_next = alloc_tree_index_n2<<3 + alloc_page_idx;
+            alloc_rsp_page_idx_next = (alloc_tree_index_n2<<3) + alloc_page_idx;
         end
     end 
 end
@@ -474,7 +477,6 @@ end
 always @(posedge clk or negedge rst_n) begin
     if(~rst_n)begin
         alloc_page_idx <= 0;
-        free_tree_idx <= 0;
         alloc_error_meet <= 1'b0;
         free_error_meet <= 1'b0;
         alloc_write_data <= 0;
@@ -483,7 +485,6 @@ always @(posedge clk or negedge rst_n) begin
         free_write_en <= 1'b0;
     end else begin
         alloc_page_idx <= alloc_page_idx_next;
-        free_tree_idx <= free_tree_idx_next;
         alloc_error_meet <= alloc_error_meet_next;
         free_error_meet <= free_error_meet_next;
         alloc_write_data <= alloc_write_data_next;
