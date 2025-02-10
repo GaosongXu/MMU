@@ -133,8 +133,8 @@ class MemoryChecker;
         @(print_trigger);
         cur_time = $time;
         $display("*********Memory Checker Event Report*********");
-        //display current ms
-        $display("Current time: %0t ms %0t us", cur_time/1000000,(cur_time%1000000)/1000);
+        //display current time in ms, .3f
+        $display("Current time: %.3f ms",cur_time*1.0e-6);
         $display("total_submit_alloc_req:%d",total_submit_alloc_req);
         $display("total_submit_free_req:%d",total_submit_free_req);
         $display("total_success_alloc_rsp:%d",total_success_alloc_req);
@@ -287,6 +287,7 @@ class MemoryChecker;
         time gap_time;
 
         while(1)begin
+            fail_rsp = 0;
             free_rsp_box.get(rsp);
             free_req_map_samaphore.get();
             req = free_req_map[rsp.free_rsp_id];
@@ -457,10 +458,13 @@ module mmu_tree_tb;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
     localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
-    localparam DEFAULT_FREE_MODE = `FREE_SPLIT_ALLOC;
+    localparam DEFAULT_FREE_MODE = `FREE_INVALID;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam MAX_TIME_OUT = 4000_000; //4000_000 ns
+    localparam FREE_SUBMIT_LATENCY = 10;//default 1 ,same as the alloc latency
+    localparam FREE_RSP_LATENCY = 2;//default2:make free fifo full,make sure the free finish when alloc finish
+    localparam ALLOC_RSP_LATENCY = 2; //default2:simulate the dsa, if the pop method is slow
 
     localparam RAMDOM_512_WEIGHT = 25;
     localparam RAMDOM_1K_WEIGHT = 25;
@@ -715,7 +719,7 @@ endtask
             mif.cb.free_req_submit <= 0;//submit keep 1 cycle
 
             //wait 3 cycle to generate the alloc request
-            repeat(1) @(mif.cb);
+            repeat(FREE_SUBMIT_LATENCY) @(mif.cb);
         end
     end
     endtask
@@ -1029,7 +1033,7 @@ endtask
             mif.cb.alloc_rsp_pop <= 1; //we have read the alloc rsp, then pop it
             @(mif.cb);
             mif.cb.alloc_rsp_pop <= 0;
-            repeat(2)@(mif.cb);
+            repeat(ALLOC_RSP_LATENCY)@(mif.cb);
             rsp.alloc_rsp_id = mif.cb.alloc_rsp_id;
             rsp.alloc_rsp_page_idx = mif.cb.alloc_rsp_page_idx;
             rsp.alloc_rsp_fail = mif.cb.alloc_rsp_fail;
@@ -1047,7 +1051,7 @@ endtask
             mif.cb.free_rsp_pop <= 1; //we have read the free rsp, then pop it
             @(mif.cb);
             mif.cb.free_rsp_pop <= 0;
-            repeat(2) @(mif.cb);
+            repeat(FREE_RSP_LATENCY) @(mif.cb);
             rsp.free_rsp_id = mif.cb.free_rsp_id;
             rsp.free_rsp_fail = mif.cb.free_rsp_fail;
             rsp.free_rsp_fail_reason = mif.cb.free_rsp_fail_reason;

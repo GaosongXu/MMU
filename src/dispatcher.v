@@ -64,8 +64,8 @@ localparam  ALLOC_WAIT_VALID = 4'd10;
 localparam  SPIN_WAIT_1    = 4'd7;
 localparam  SPIN_WAIT_2    = 4'd8;
 
-localparam  FREE_WAIT_VALID_COUNT = 6;
-localparam  ALLOC_WAIT_VALID_COUNT = 6; //more than 1 cycle
+localparam  FREE_WAIT_VALID_COUNT = 5;
+localparam  ALLOC_WAIT_VALID_COUNT = 5;
 
 //************************************ ports
 input clk;
@@ -276,17 +276,19 @@ always @(*) begin
                 alloc_req_pop = 1;
                 state_next = ALLOC_CHECK_REQ;
             end else begin
-                //we can not pop any more
+                if(!fdt_blocked_fdt_in)begin //only fdt block in ,we can redispatch the request
+                    invalid_req_meet_next = 1;
+                end
                 state_next = ALLOC_NON_POP;
             end
         end
-        ALLOC_NON_POP:begin
-           //we dont pop in last state, just check the block signal
+        ALLOC_NON_POP:begin 
+            invalid_req_meet_next = invalid_req_meet;//keep it
             if (fdt_blocked_fdt_in && !free_alloc_switch) begin
                 alloc_req_valid_fdt_out_next = 1;
             end 
-            if (fdt_blocked_fdt_in && free_alloc_switch ) begin
-                state_next = ALLOC_WAIT_VALID;
+            if (free_alloc_switch) begin
+                state_next = ALLOC_WAIT_VALID;//in here may be fdt_blocked_fdt_in or alloc_rsp_fifo_almost_full
             end else begin
                 state_next = IDLE;
             end
@@ -330,7 +332,7 @@ always @(*) begin
             if ( alloc_waiting_count == ALLOC_WAIT_VALID_COUNT) begin
                 if (invalid_req_meet) begin
                     alloc_req_valid_fdt_out_next = 0;
-                end else begin
+                end else begin //from check_req or fdt block in
                     alloc_req_valid_fdt_out_next = 1;  
                 end
                 alloc_waiting_count_next = 0;
