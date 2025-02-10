@@ -40,7 +40,7 @@
 `define ALL_PAGE_IDX_WIDTH  15 //0~32768-1
 
 //request related
-`define REQ_ID_WIDTH 13
+`define REQ_ID_WIDTH 14
 `define REQ_SIZE_TYPE_WIDTH 4
 `define REQ_ALLOC_TYPE 0
 `define REQ_FREE_TYPE 1

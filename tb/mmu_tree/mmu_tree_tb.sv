@@ -456,11 +456,11 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_1K;
+    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_FREE_MODE = `FREE_SPLIT_ALLOC;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
-    localparam DEFAULT_FREE_MODE = `NO_FREE;
-    localparam MAX_TIME_OUT = 1000000; //100k cycle
+    localparam MAX_TIME_OUT = 4000_000; //4000_000 ns
 
     localparam RAMDOM_512_WEIGHT = 25;
     localparam RAMDOM_1K_WEIGHT = 25;
@@ -682,6 +682,7 @@ endtask
     task free_request_generator_thread();
     begin
         alloc_rsp rsp;
+        //do a wait, simulate the memory in using
         while (DEFAULT_FREE_MODE!=`NO_FREE) begin
             //read from the checked_alloc_rsp_box, generate the free request
             checked_alloc_rsp_box.get(rsp);
@@ -743,7 +744,7 @@ endtask
             begin
                 req.free_req_id = last_free_req_id;
                 last_free_req_id++;
-                if (last_free_req_id>MAX_REQ_SIZE) begin
+                if (last_free_req_id>MAX_REQ_SIZE -1) begin
                     last_free_req_id = 1;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -761,7 +762,7 @@ endtask
                     begin
                         req.free_req_id = last_free_req_id;
                         last_free_req_id++;
-                        if (last_free_req_id>MAX_REQ_SIZE) begin
+                        if (last_free_req_id>MAX_REQ_SIZE -1) begin
                             last_free_req_id = 1;
                         end
                         req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -775,7 +776,7 @@ endtask
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id>MAX_REQ_SIZE) begin
+                            if (last_free_req_id>MAX_REQ_SIZE -1) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i;
@@ -790,7 +791,7 @@ endtask
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id>MAX_REQ_SIZE) begin
+                            if (last_free_req_id>MAX_REQ_SIZE -1) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
@@ -805,7 +806,7 @@ endtask
                         for (i=0; i<4; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id>MAX_REQ_SIZE) begin
+                            if (last_free_req_id>MAX_REQ_SIZE -1) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
@@ -825,7 +826,7 @@ endtask
                 if (rand_invalid==0||rand_invalid==20) begin
                     req.free_req_id = last_free_req_id;
                     last_free_req_id++;
-                    if (last_free_req_id>MAX_REQ_SIZE) begin
+                    if (last_free_req_id>MAX_REQ_SIZE -1) begin
                         last_free_req_id = 1;
                     end
                     req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -841,7 +842,7 @@ endtask
                 //a correct free is need, so we generate a correct free request
                 req.free_req_id = last_free_req_id;
                 last_free_req_id++;
-                if (last_free_req_id>MAX_REQ_SIZE) begin
+                if (last_free_req_id>MAX_REQ_SIZE -1) begin
                     last_free_req_id = 1;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -922,7 +923,7 @@ endtask
                         req.alloc_req_id = last_alloc_req_id;
                         req.alloc_req_page_count = page_count;    
                         last_alloc_req_id++;
-                        if(last_alloc_req_id>MAX_REQ_SIZE)begin
+                        if(last_alloc_req_id>MAX_REQ_SIZE -1)begin
                             last_alloc_req_id=1; //id can not be 0
                         end
                         alloc_req_fifo_semaphore.get();
@@ -940,7 +941,7 @@ endtask
                         req.alloc_req_id = last_alloc_req_id;
                         req.alloc_req_page_count = page_count;    
                         last_alloc_req_id++;
-                        if(last_alloc_req_id>MAX_REQ_SIZE)begin
+                        if(last_alloc_req_id>MAX_REQ_SIZE -1)begin
                             last_alloc_req_id=1; //id can not be 0
                         end
                         req_array[p] = req;
@@ -974,7 +975,7 @@ endtask
             for(i=0;i<total_size;i++) begin
                 req.alloc_req_id = last_alloc_req_id;
                 last_alloc_req_id++;
-                if (last_alloc_req_id>MAX_REQ_SIZE) begin //id can not be 0
+                if (last_alloc_req_id>MAX_REQ_SIZE -1) begin //id can not be 0
                     last_alloc_req_id = 1;
                 end
                 //we have a 1,2,4,8 weight, and the random value need generate from this weight
@@ -1022,6 +1023,8 @@ endtask
         output alloc_rsp rsp
     );
         begin
+            //wait free rsp fifo empty
+            wait (mif.cb.free_rsp_fifo_not_empty == 0) @(mif.cb);
             wait (mif.cb.alloc_rsp_fifo_not_empty == 1) @(mif.cb);
             mif.cb.alloc_rsp_pop <= 1; //we have read the alloc rsp, then pop it
             @(mif.cb);

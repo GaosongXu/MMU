@@ -103,6 +103,7 @@ reg free_error_meet_next,free_error_meet;
 
 reg alloc_write_en , alloc_write_en_next;
 reg [`OR_TREE_BIT_WIDTH-1:0] alloc_write_data,alloc_write_data_next;
+reg [7:0] free_base_data;
 reg free_write_en,free_write_en_next;
 reg [`OR_TREE_BIT_WIDTH-1:0] free_write_data,free_write_data_next;
 
@@ -148,7 +149,7 @@ reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size_next, free_rsp_actual_size_n
 
 
 wire [`OR_TREE_BIT_WIDTH-1:0] alloc_magic [`OR_TREE_BIT_WIDTH-1:0];
-wire [`OR_TREE_BIT_WIDTH-1:0] free_magic [`OR_TREE_BIT_WIDTH-1:0];
+wire [7:0] free_magic [`OR_TREE_BIT_WIDTH-1:0];
 wire full_4k;
 wire full_2k_1;
 wire full_2k_2;
@@ -175,21 +176,21 @@ assign alloc_magic[12]= {1'b1,2'b01,4'b0010,8'b00000100};
 assign alloc_magic[13]= {1'b1,2'b01,4'b0001,8'b00000010};
 assign alloc_magic[14]= {1'b1,2'b01,4'b0001,8'b00000001};
 
-assign free_magic[0]  = {1'b0,2'b00,4'b0000,8'b00000000};
-assign free_magic[1]  = {1'b1,2'b01,4'b0011,8'b00001111};
-assign free_magic[2]  = {1'b1,2'b10,4'b1100,8'b11110000};
-assign free_magic[3]  = {1'b1,2'b11,4'b0111,8'b00111111};
-assign free_magic[4]  = {1'b1,2'b11,4'b1011,8'b11001111};
-assign free_magic[5]  = {1'b1,2'b11,4'b1101,8'b11110011};
-assign free_magic[6]  = {1'b1,2'b11,4'b1110,8'b11111100};
-assign free_magic[7]  = {1'b1,2'b11,4'b1111,8'b01111111};
-assign free_magic[8]  = {1'b1,2'b11,4'b1111,8'b10111111};
-assign free_magic[9]  = {1'b1,2'b11,4'b1111,8'b11011111};
-assign free_magic[10] = {1'b1,2'b11,4'b1111,8'b11101111};
-assign free_magic[11] = {1'b1,2'b11,4'b1111,8'b11110111};
-assign free_magic[12] = {1'b1,2'b11,4'b1111,8'b11111011};
-assign free_magic[13] = {1'b1,2'b11,4'b1111,8'b11111101};
-assign free_magic[14] = {1'b1,2'b11,4'b1111,8'b11111110};
+assign free_magic[0]  = {8'b00000000};
+assign free_magic[1]  = {8'b00001111};
+assign free_magic[2]  = {8'b11110000};
+assign free_magic[3]  = {8'b00111111};
+assign free_magic[4]  = {8'b11001111};
+assign free_magic[5]  = {8'b11110011};
+assign free_magic[6]  = {8'b11111100};
+assign free_magic[7]  = {8'b01111111};
+assign free_magic[8]  = {8'b10111111};
+assign free_magic[9]  = {8'b11011111};
+assign free_magic[10] = {8'b11101111};
+assign free_magic[11] = {8'b11110111};
+assign free_magic[12] = {8'b11111011};
+assign free_magic[13] = {8'b11111101};
+assign free_magic[14] = {8'b11111110};
 
 
 assign full_4k = read_data2[7:0] == 8'hff;
@@ -280,14 +281,13 @@ end
 
 
 
-//!the free logic just read the data ,and check the postion to free is valid
-//!how can we check the postion is valid?
-//!1.the postion is used,and the size we want to free is also used
+//if it make the time sequence hard to convergence, we can use the table to search
 always @(*) begin
     free_write_en_next = 1'b0;
     free_write_data_next = 0;
     free_error_meet_next = 1'b0;
     magic_free_tree_idx = 4'h0; //use to calculate the magic number
+    free_base_data = 8'h0;
     if (free_valid_n1) begin
        case (free_size_n1)
        `REQ_4K:begin
@@ -328,7 +328,8 @@ always @(*) begin
        endcase
         if(!free_error_meet_next)begin
             free_write_en_next = 1'b1;
-            free_write_data_next = free_magic[magic_free_tree_idx] & read_data2;
+            free_base_data = free_magic[magic_free_tree_idx] & read_data2;
+            free_write_data_next ={|free_base_data[7:0],|free_base_data[7:4],|free_base_data[3:0],|free_base_data[7:6],|free_base_data[5:4],|free_base_data[3:2],|free_base_data[1:0],free_base_data};
         end
     end
 end
