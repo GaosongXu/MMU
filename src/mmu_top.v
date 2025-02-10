@@ -28,9 +28,14 @@ module mmu_top (
     alloc_rsp_page_idx,
     alloc_rsp_fail,
     alloc_rsp_fail_reason,
+    alloc_rsp_origin_size,
+    alloc_rsp_actual_size,
+
     free_rsp_id,
     free_rsp_fail,
     free_rsp_fail_reason,
+    free_rsp_origin_size,
+    free_rsp_actual_size,
 
     alloc_req_fifo_full,
     free_req_fifo_full,
@@ -58,10 +63,14 @@ output [`REQ_ID_WIDTH-1:0] alloc_rsp_id; //!13 bit the response id
 output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx; //!15 bit the page index of the response, 0~3276-1
 output alloc_rsp_fail;  //!if fail, then the value will be 1
 output [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason; //!the reason of the fail 
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size; //!the origin size of the request
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size; //!the actual size of the request
 
 output [`REQ_ID_WIDTH-1:0] free_rsp_id; //!13 bit the response id
 output free_rsp_fail; //!if fail, then the value will be 1
 output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason; //!the reason of the fail
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size; //!the origin size of the request
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size; //!the actual size of the request
 
 output alloc_req_fifo_full; //!if the alloc request fifo is full,dont submit the request
 output free_req_fifo_full; //!if the free request fifo is full,dont submit the request
@@ -87,12 +96,16 @@ wire [`REQ_ID_WIDTH-1:0] mmu_alloc_rsp_id;
 wire [`ALL_PAGE_IDX_WIDTH-1:0] mmu_alloc_rsp_page_idx;
 wire mmu_alloc_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] mmu_alloc_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] mmu_alloc_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] mmu_alloc_rsp_actual_size;
 
 
 wire mmu_free_rsp_write_en;
 wire [`REQ_ID_WIDTH-1:0] mmu_free_rsp_id;
 wire mmu_free_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] mmu_free_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] mmu_free_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] mmu_free_rsp_actual_size;
 
 wire mmu_alloc_req_fifo_almost_full;
 wire mmu_free_req_fifo_almost_full;
@@ -150,11 +163,15 @@ wire [`FIFO_PTR_WIDTH:0] mmu_free_req_fifo_data_count;
       .alloc_rsp_page_idx(mmu_alloc_rsp_page_idx),
       .alloc_rsp_fail(mmu_alloc_rsp_fail),
       .alloc_rsp_fail_reason(mmu_alloc_rsp_fail_reason),
+      .alloc_rsp_origin_size(mmu_alloc_rsp_origin_size),
+      .alloc_rsp_actual_size(mmu_alloc_rsp_actual_size),
       .alloc_rsp_fifo_almost_full(mmu_alloc_rsp_fifo_almost_full),
       .free_rsp_write_en(mmu_free_rsp_write_en),
       .free_rsp_id(mmu_free_rsp_id),
       .free_rsp_fail(mmu_free_rsp_fail),
       .free_rsp_fail_reason(mmu_free_rsp_fail_reason),
+      .free_rsp_origin_size(mmu_free_rsp_origin_size),
+      .free_rsp_actual_size(mmu_free_rsp_actual_size),
       .free_rsp_fifo_almost_full(mmu_free_rsp_fifo_almost_full)
       );
 `endif
@@ -210,16 +227,16 @@ assign alloc_rsp_fifo_not_empty = ~alloc_resp_fifo_empty;
 //!the fifo for the alloc response
  sync_fifo    #(
    .FIFO_PTR(`FIFO_PTR_WIDTH),
-   .FIFO_WIDTH(`REQ_ID_WIDTH+`ALL_PAGE_IDX_WIDTH+`FAIL_REASON_WIDTH+1),
+   .FIFO_WIDTH(`REQ_ID_WIDTH+`ALL_PAGE_IDX_WIDTH+`FAIL_REASON_WIDTH+1+2*`REQ_SIZE_TYPE_WIDTH),
    .FIFO_DEPTH(`FIFO_DEPTH)
  ) alloc_resp_fifo 
    (
        .clk(clk),
        .rst_n(rst_n),
        .write_en(mmu_alloc_rsp_write_en),
-       .write_data({mmu_alloc_rsp_fail_reason,mmu_alloc_rsp_fail,mmu_alloc_rsp_page_idx,mmu_alloc_rsp_id}),
+       .write_data({mmu_alloc_rsp_actual_size,mmu_alloc_rsp_origin_size,mmu_alloc_rsp_fail_reason,mmu_alloc_rsp_fail,mmu_alloc_rsp_page_idx,mmu_alloc_rsp_id}),
        .read_en(alloc_rsp_pop),
-       .read_data({alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id}),
+       .read_data({alloc_rsp_actual_size,alloc_rsp_origin_size,alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id}),
        .fifo_full(mmu_alloc_rsp_fifo_full),
        .fifo_empty(alloc_resp_fifo_empty),
        .fifo_almost_full(mmu_alloc_rsp_fifo_almost_full),
@@ -236,16 +253,16 @@ assign alloc_rsp_fifo_not_empty = ~alloc_resp_fifo_empty;
   //!the fifo for the free response
   sync_fifo    #(
     .FIFO_PTR(`FIFO_PTR_WIDTH),
-    .FIFO_WIDTH(`REQ_ID_WIDTH+`FAIL_REASON_WIDTH+1),
+    .FIFO_WIDTH(`REQ_ID_WIDTH+`FAIL_REASON_WIDTH+1+2*`REQ_SIZE_TYPE_WIDTH),
     .FIFO_DEPTH(`FIFO_DEPTH)
   ) free_resp_fifo 
    (
        .clk(clk),
        .rst_n(rst_n),
        .write_en(mmu_free_rsp_write_en),
-       .write_data({mmu_free_rsp_fail, mmu_free_rsp_fail_reason, mmu_free_rsp_id}),
+       .write_data({mmu_free_rsp_actual_size,mmu_free_rsp_origin_size,mmu_free_rsp_fail, mmu_free_rsp_fail_reason, mmu_free_rsp_id}),
        .read_en(free_rsp_pop),
-       .read_data({free_rsp_fail, free_rsp_fail_reason, free_rsp_id}),
+       .read_data({free_rsp_actual_size,free_rsp_origin_size,free_rsp_fail, free_rsp_fail_reason, free_rsp_id}),
        .fifo_full(mmu_free_rsp_fifo_full),
        .fifo_empty(free_resp_fifo_empty),
        .fifo_almost_full(mmu_free_rsp_fifo_almost_full),

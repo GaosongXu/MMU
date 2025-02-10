@@ -24,23 +24,29 @@ module dispatcher  #(
     alloc_req_valid_fdt_out,
     alloc_req_id_fdt_out,
     alloc_req_size_fdt_out, //aligned 0:4k,1:2m,2:1g 
+    alloc_req_origin_size_fdt_out,//not aligned size
     //4.free request out to or_tree related
     free_req_valid_or_tree_out,
     free_req_id_or_tree_out,
     free_req_page_idx_or_tree_out,
     free_req_size_or_tree_out, //aligned 0:4k,1:2m,2:1g
+    free_req_origin_size_or_tree_out,//not aligned size
     //5.rsp to alloc rsp fifo related
     alloc_rsp_write_en,
     alloc_rsp_id,
     alloc_rsp_page_idx,
     alloc_rsp_fail,
     alloc_rsp_fail_reason,
+    alloc_rsp_origin_size,
+    alloc_rsp_actual_size, //just zero in dispatcher out here
     alloc_rsp_fifo_almost_full,
     //6.rsp to free rsp fifo related
     free_rsp_write_en,
     free_rsp_id,
     free_rsp_fail,
     free_rsp_fail_reason,
+    free_rsp_origin_size,
+    free_rsp_actual_size, //just zero in dispatcher out here
     free_rsp_fifo_almost_full,
     //7.other input signals to get the mmu status,such as fdt_blocked, free_valid from or_tree
     fdt_blocked_fdt_in
@@ -80,23 +86,31 @@ input [`FIFO_PTR_WIDTH:0] free_fifo_data_count; //tell the free request count
 output alloc_req_valid_fdt_out;
 output [`REQ_ID_WIDTH-1:0] alloc_req_id_fdt_out;
 output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_size_fdt_out; //aligned 0:4k,1:2m,2:1g
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_origin_size_fdt_out; //not aligned size
 //4.free request out to or_tree related
 output free_req_valid_or_tree_out;
 output [`REQ_ID_WIDTH-1:0] free_req_id_or_tree_out;
 output [`ALL_PAGE_IDX_WIDTH-1:0] free_req_page_idx_or_tree_out;
 output [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_size_or_tree_out; //aligned 0:4k,1:2m,2:1g
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_origin_size_or_tree_out; //not aligned size
 //5.rsp to alloc rsp fifo related
 output alloc_rsp_write_en;
 output [`REQ_ID_WIDTH-1:0] alloc_rsp_id;
 output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;
 output alloc_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size; //just zero in dispatcher out here
+
 input alloc_rsp_fifo_almost_full;
 //6.rsp to free rsp fifo related
 output free_rsp_write_en; //some one will handle the conflict, dont care the conflict
 output [`REQ_ID_WIDTH-1:0] free_rsp_id;
 output free_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size; //just zero in dispatcher out here
+
 input free_rsp_fifo_almost_full;
 //7.other input signals to get the mmu status,such as fdt_blocked, free_valid from or_tree
 input fdt_blocked_fdt_in;
@@ -107,19 +121,25 @@ reg free_req_pop;
 reg alloc_req_valid_fdt_out, alloc_req_valid_fdt_out_next;
 reg [`REQ_ID_WIDTH-1:0] alloc_req_id_fdt_out, alloc_req_id_fdt_out_next;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_size_fdt_out, alloc_req_size_fdt_out_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_origin_size_fdt_out, alloc_req_origin_size_fdt_out_next;
 reg free_req_valid_or_tree_out, free_req_valid_or_tree_out_next;
 reg [`REQ_ID_WIDTH-1:0] free_req_id_or_tree_out, free_req_id_or_tree_out_next;
 reg [`ALL_PAGE_IDX_WIDTH-1:0] free_req_page_idx_or_tree_out, free_req_page_idx_or_tree_out_next;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_size_or_tree_out, free_req_size_or_tree_out_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_origin_size_or_tree_out, free_req_origin_size_or_tree_out_next;
 reg alloc_rsp_write_en, alloc_rsp_write_en_next;
 reg [`REQ_ID_WIDTH-1:0] alloc_rsp_id, alloc_rsp_id_next;
 reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx, alloc_rsp_page_idx_next;
 reg alloc_rsp_fail, alloc_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason, alloc_rsp_fail_reason_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size, alloc_rsp_origin_size_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size, alloc_rsp_actual_size_next;
 reg free_rsp_write_en, free_rsp_write_en_next;
 reg [`REQ_ID_WIDTH-1:0] free_rsp_id, free_rsp_id_next;
 reg free_rsp_fail, free_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason, free_rsp_fail_reason_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size, free_rsp_origin_size_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size, free_rsp_actual_size_next;
 
 reg [3:0] prev_state,state, state_next;
 
@@ -138,8 +158,11 @@ always @(*) begin
     free_rsp_write_en_next = 0;
     free_rsp_fail_next = 0;
     free_rsp_fail_reason_next = 0;
+    free_rsp_origin_size_next = 0;
+    free_rsp_actual_size_next = 0;
     free_rsp_id_next = 0;
     free_req_size_or_tree_out_next = free_req_size_or_tree_out; 
+    free_req_origin_size_or_tree_out_next = free_req_origin_size_or_tree_out;
     free_req_id_or_tree_out_next = free_req_id_or_tree_out; 
     free_req_page_idx_or_tree_out_next = free_req_page_idx_or_tree_out; 
     free_req_valid_or_tree_out_next = 0;
@@ -149,8 +172,11 @@ always @(*) begin
     alloc_rsp_write_en_next = 0;
     alloc_rsp_fail_next = 0;
     alloc_rsp_fail_reason_next = 0;
+    alloc_rsp_origin_size_next = 0;
+    alloc_rsp_actual_size_next = 0;
     alloc_rsp_id_next = 0;
     alloc_req_size_fdt_out_next = alloc_req_size_fdt_out;
+    alloc_req_origin_size_fdt_out_next = alloc_req_origin_size_fdt_out;
     alloc_req_id_fdt_out_next = alloc_req_id_fdt_out;
     alloc_req_valid_fdt_out_next = 0;
     invalid_req_meet_next = 0;
@@ -196,6 +222,8 @@ always @(*) begin
                 free_rsp_write_en_next = 1;
                 free_rsp_fail_next = 1;
                 free_rsp_fail_reason_next = free_req_page_count ==0 ? `FREE_FAIL_REASON_EQUAL_ZERO : `FREE_FAIL_REASON_OVER_4KB;
+                free_rsp_origin_size_next = free_req_page_count;
+                free_rsp_actual_size_next = 0;
                 free_rsp_id_next = free_req_id;
                 invalid_req_meet_next = 1;
             end else begin
@@ -212,6 +240,7 @@ always @(*) begin
                 endcase
                 free_req_id_or_tree_out_next = free_req_id;
                 free_req_page_idx_or_tree_out_next = free_req_page_idx;
+                free_req_origin_size_or_tree_out_next = free_req_page_count;
                 //if dont need switch , just start
                 if (!alloc_free_switch) begin
                     free_req_valid_or_tree_out_next = 1;
@@ -267,6 +296,8 @@ always @(*) begin
                 alloc_rsp_write_en_next = 1;
                 alloc_rsp_fail_next = 1;
                 alloc_rsp_fail_reason_next = alloc_req_page_count ==0 ? `ALLOC_FAIL_REASON_EQUAL_ZERO : `ALLOC_FAIL_REASON_OVER_4KB;
+                alloc_rsp_origin_size_next = alloc_req_page_count;
+                alloc_rsp_actual_size_next = 0;
                 alloc_rsp_id_next = alloc_req_id;
                 invalid_req_meet_next = 1;
             end else begin
@@ -282,6 +313,7 @@ always @(*) begin
                     8:alloc_req_size_fdt_out_next = `REQ_4K;
                 endcase
                 alloc_req_id_fdt_out_next = alloc_req_id;
+                alloc_req_origin_size_fdt_out_next = alloc_req_page_count;
                 if(!free_alloc_switch) begin
                     alloc_req_valid_fdt_out_next = 1;
                 end
@@ -327,19 +359,25 @@ always @(posedge clk or negedge rst_n) begin
         alloc_req_valid_fdt_out <= 0;
         alloc_req_id_fdt_out <= 0;
         alloc_req_size_fdt_out <= 0;
+        alloc_req_origin_size_fdt_out <= 0;
         free_req_valid_or_tree_out <= 0;
         free_req_id_or_tree_out <= 0;
         free_req_page_idx_or_tree_out <= 0;
         free_req_size_or_tree_out <= 0;
+        free_req_origin_size_or_tree_out <= 0;
         alloc_rsp_write_en <= 0;
         alloc_rsp_id <= 0;
         alloc_rsp_page_idx <= 0;
         alloc_rsp_fail <= 0;
         alloc_rsp_fail_reason <= 0;
+        alloc_rsp_origin_size <= 0;
+        alloc_rsp_actual_size <= 0;
         free_rsp_write_en <= 0;
         free_rsp_id <= 0;
         free_rsp_fail <= 0;
         free_rsp_fail_reason <= 0;
+        free_rsp_origin_size <= 0;
+        free_rsp_actual_size <= 0;
         state <= IDLE;
         prev_state <= IDLE;
         alloc_free_switch <= 0;
@@ -351,19 +389,25 @@ always @(posedge clk or negedge rst_n) begin
         alloc_req_valid_fdt_out <= alloc_req_valid_fdt_out_next;
         alloc_req_id_fdt_out <= alloc_req_id_fdt_out_next;
         alloc_req_size_fdt_out <= alloc_req_size_fdt_out_next;
+        alloc_req_origin_size_fdt_out <= alloc_req_origin_size_fdt_out_next;
         free_req_valid_or_tree_out <= free_req_valid_or_tree_out_next;
         free_req_id_or_tree_out <= free_req_id_or_tree_out_next;
         free_req_page_idx_or_tree_out <= free_req_page_idx_or_tree_out_next;
         free_req_size_or_tree_out <= free_req_size_or_tree_out_next;
+        free_req_origin_size_or_tree_out <= free_req_origin_size_or_tree_out_next;
         alloc_rsp_write_en <= alloc_rsp_write_en_next;
         alloc_rsp_id <= alloc_rsp_id_next;
         alloc_rsp_page_idx <= alloc_rsp_page_idx_next;
         alloc_rsp_fail <= alloc_rsp_fail_next;
         alloc_rsp_fail_reason <= alloc_rsp_fail_reason_next;
+        alloc_rsp_origin_size <= alloc_rsp_origin_size_next;
+        alloc_rsp_actual_size <= alloc_rsp_actual_size_next;
         free_rsp_write_en <= free_rsp_write_en_next;
         free_rsp_id <= free_rsp_id_next;
         free_rsp_fail <= free_rsp_fail_next;
         free_rsp_fail_reason <= free_rsp_fail_reason_next;
+        free_rsp_origin_size <= free_rsp_origin_size_next;
+        free_rsp_actual_size <= free_rsp_actual_size_next;
         state <= state_next;
         prev_state <= state;
         alloc_free_switch <= alloc_free_switch_next;

@@ -6,7 +6,7 @@
 
 
 //fdt related
-`define FDT_ADDR_WIDTH  1
+`define FDT_ADDR_WIDTH  0
 `define FDT_INDEX_WIDTH   6//64
 `define FTD_DATA_WIDTH 64
 `define FDT_BIT_WIDTH  4 //generate 4 bit

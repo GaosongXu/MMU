@@ -28,12 +28,16 @@ module mmu_tree (
     alloc_rsp_page_idx,
     alloc_rsp_fail,
     alloc_rsp_fail_reason,
+    alloc_rsp_origin_size,
+    alloc_rsp_actual_size,
     alloc_rsp_fifo_almost_full,
 
     free_rsp_write_en,
     free_rsp_id,
     free_rsp_fail,
     free_rsp_fail_reason,
+    free_rsp_origin_size,
+    free_rsp_actual_size,
     free_rsp_fifo_almost_full
 );
 
@@ -57,31 +61,41 @@ output [`REQ_ID_WIDTH-1:0] alloc_rsp_id;
 output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;    
 output alloc_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size;
 input alloc_rsp_fifo_almost_full;
 
 output free_rsp_write_en;
 output [`REQ_ID_WIDTH-1:0] free_rsp_id;
 output free_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size;
 input free_rsp_fifo_almost_full;                  
 
 //dsp related ports
 wire alloc_req_valid_fdt_out;
 wire [`REQ_ID_WIDTH-1:0] alloc_req_id_fdt_out;
 wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_size_fdt_out;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_req_origin_size_fdt_out;
 wire free_req_valid_or_tree_out;
 wire [`REQ_ID_WIDTH-1:0] free_req_id_or_tree_out;
 wire [`ALL_PAGE_IDX_WIDTH-1:0] free_req_page_idx_or_tree_out;
 wire [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_size_or_tree_out;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] free_req_origin_size_or_tree_out;
 wire dsp_alloc_rsp_write_en;
 wire [`REQ_ID_WIDTH-1:0] dsp_alloc_rsp_id;
 wire [`ALL_PAGE_IDX_WIDTH-1:0] dsp_alloc_rsp_page_idx;
 wire dsp_alloc_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] dsp_alloc_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] dsp_alloc_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] dsp_alloc_rsp_actual_size;
 wire dsp_free_rsp_write_en;
 wire [`REQ_ID_WIDTH-1:0] dsp_free_rsp_id;
 wire dsp_free_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] dsp_free_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] dsp_free_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] dsp_free_rsp_actual_size;
 wire fdt_blocked_fdt_in;
 
 //fdt related ports
@@ -89,6 +103,7 @@ wire alloc_valid_at_out;
 wire [`REQ_ID_WIDTH-1:0] alloc_id_at_out;
 wire [`AT_TREE_INDEX_WIDTH-1:0] alloc_row_index_at_out;
 wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_at_out;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_at_out;
 wire fdt_update_valid_at_in;
 wire [`FDT_INDEX_WIDTH-1:0] fdt_update_idx_at_in;
 wire [`FDT_BIT_WIDTH-1:0] fdt_update_bit_sequence_at_in;
@@ -98,6 +113,7 @@ wire alloc_valid_ort_out;
 wire [`REQ_ID_WIDTH-1:0] alloc_id_ort_out;
 wire [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index_ort_out;
 wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_ort_out;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_ort_out;
 wire at_tree_update_en;
 wire [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx;
 wire [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_row_idx;
@@ -109,10 +125,14 @@ wire [`REQ_ID_WIDTH-1:0] ort_alloc_rsp_id;
 wire [`ALL_PAGE_IDX_WIDTH-1:0] ort_alloc_rsp_page_idx;    
 wire ort_alloc_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] ort_alloc_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] ort_alloc_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] ort_alloc_rsp_actual_size;
 wire ort_free_rsp_write_en;
 wire [`REQ_ID_WIDTH-1:0] ort_free_rsp_id;
 wire ort_free_rsp_fail;
 wire [`FAIL_REASON_WIDTH-1:0] ort_free_rsp_fail_reason;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] ort_free_rsp_origin_size;
+wire [`REQ_SIZE_TYPE_WIDTH-1:0] ort_free_rsp_actual_size;
 
 
 dispatcher  dispatcher_inst (
@@ -131,20 +151,26 @@ dispatcher  dispatcher_inst (
     .alloc_req_valid_fdt_out(alloc_req_valid_fdt_out),
     .alloc_req_id_fdt_out(alloc_req_id_fdt_out),
     .alloc_req_size_fdt_out(alloc_req_size_fdt_out),
+    .alloc_req_origin_size_fdt_out(alloc_req_origin_size_fdt_out),
     .free_req_valid_or_tree_out(free_req_valid_or_tree_out),
     .free_req_id_or_tree_out(free_req_id_or_tree_out),
     .free_req_page_idx_or_tree_out(free_req_page_idx_or_tree_out),
     .free_req_size_or_tree_out(free_req_size_or_tree_out),
+    .free_req_origin_size_or_tree_out(free_req_origin_size_or_tree_out),
     .alloc_rsp_write_en(dsp_alloc_rsp_write_en),
     .alloc_rsp_id(dsp_alloc_rsp_id),
     .alloc_rsp_page_idx(dsp_alloc_rsp_page_idx),
     .alloc_rsp_fail(dsp_alloc_rsp_fail),
     .alloc_rsp_fail_reason(dsp_alloc_rsp_fail_reason),
+    .alloc_rsp_origin_size(dsp_alloc_rsp_origin_size),
+    .alloc_rsp_actual_size(dsp_alloc_rsd_actual_size),
     .alloc_rsp_fifo_almost_full(alloc_rsp_fifo_almost_full),
     .free_rsp_write_en(dsp_free_rsp_write_en),
     .free_rsp_id(dsp_free_rsp_id),
     .free_rsp_fail(dsp_free_rsp_fail),
     .free_rsp_fail_reason(dsp_free_rsp_fail_reason),
+    .free_rsp_origin_size(dsp_free_rsp_origin_size),
+    .free_rsp_actual_size(dsp_free_rsp_actual_size),
     .free_rsp_fifo_almost_full(free_rsp_fifo_almost_full),
     .fdt_blocked_fdt_in(fdt_blocked_fdt_in)
   );
@@ -157,10 +183,12 @@ dispatcher  dispatcher_inst (
     .alloc_valid_dsp_in(alloc_req_valid_fdt_out),
     .alloc_id_dsp_in(alloc_req_id_fdt_out),
     .alloc_size_dsp_in(alloc_req_size_fdt_out),
+    .alloc_origin_size_dsp_in(alloc_req_origin_size_fdt_out),
     .alloc_valid_at_out(alloc_valid_at_out),
     .alloc_id_at_out(alloc_id_at_out),
     .alloc_row_index_at_out(alloc_row_index_at_out),
     .alloc_size_at_out(alloc_size_at_out),
+    .alloc_origin_size_at_out(alloc_origin_size_at_out),
     .fdt_update_valid_at_in(fdt_update_valid_at_in),
     .fdt_update_idx_at_in(fdt_update_idx_at_in),
     .fdt_update_bit_sequence_at_in(fdt_update_bit_sequence_at_in),
@@ -175,10 +203,12 @@ dispatcher  dispatcher_inst (
     .alloc_id_fdt_in(alloc_id_at_out),
     .alloc_pos_fdt_in(alloc_row_index_at_out),
     .alloc_size_fdt_in(alloc_size_at_out),
+    .alloc_origin_size_fdt_in(alloc_origin_size_at_out),
     .alloc_valid_ort_out(alloc_valid_ort_out),
     .alloc_id_ort_out(alloc_id_ort_out),
     .alloc_tree_index_ort_out(alloc_tree_index_ort_out),
     .alloc_size_ort_out(alloc_size_ort_out),
+    .alloc_origin_size_ort_out(alloc_origin_size_ort_out),
     .at_tree_update_en(at_tree_update_en),
     .at_tree_update_column_idx(at_tree_update_column_idx),
     .at_tree_update_row_idx(at_tree_update_row_idx),
@@ -195,10 +225,12 @@ dispatcher  dispatcher_inst (
     .alloc_id(alloc_id_ort_out),
     .alloc_tree_index(alloc_tree_index_ort_out),
     .alloc_size(alloc_size_ort_out),
+    .alloc_origin_size(alloc_origin_size_ort_out),
     .free_valid(free_req_valid_or_tree_out),
     .free_id(free_req_id_or_tree_out),
     .free_page_index(free_req_page_idx_or_tree_out),
     .free_size(free_req_size_or_tree_out),
+    .free_origin_size(free_req_origin_size_or_tree_out),
     .at_tree_update_en(at_tree_update_en),
     .at_tree_update_column_idx(at_tree_update_column_idx),
     .at_tree_update_row_idx(at_tree_update_row_idx),
@@ -208,38 +240,42 @@ dispatcher  dispatcher_inst (
     .alloc_rsp_page_idx(ort_alloc_rsp_page_idx),
     .alloc_rsp_fail(ort_alloc_rsp_fail),
     .alloc_rsp_fail_reason(ort_alloc_rsp_fail_reason),
+    .alloc_rsp_origin_size(ort_alloc_rsp_origin_size),
+    .alloc_rsp_actual_size(ort_alloc_rsp_actual_size),
     .free_rsp_write_en(ort_free_rsp_write_en),
     .free_rsp_id(ort_free_rsp_id),
     .free_rsp_fail(ort_free_rsp_fail),
-    .free_rsp_fail_reason(ort_free_rsp_fail_reason)
+    .free_rsp_fail_reason(ort_free_rsp_fail_reason),
+    .free_rsp_origin_size(ort_free_rsp_origin_size),
+    .free_rsp_actual_size(ort_free_rsp_actual_size)
   );
 
   rsp_arbiter # (
-    .RSP_WIDTH(`REQ_ID_WIDTH+`FAIL_REASON_WIDTH+1)
+    .RSP_WIDTH(`REQ_ID_WIDTH+`FAIL_REASON_WIDTH+1+2*`REQ_SIZE_TYPE_WIDTH)
   )
   free_rsp_arbiter_inst (
     .clk(clk),
     .rst_n(rst_n),
     .rsp_write_en_1(ort_free_rsp_write_en),
-    .rsp_data_1({ort_free_rsp_fail_reason,ort_free_rsp_fail,ort_free_rsp_id}),
+    .rsp_data_1({ort_free_rsp_actual_size,ort_free_rsp_origin_size,ort_free_rsp_fail_reason,ort_free_rsp_fail,ort_free_rsp_id}),
     .rsp_write_en_2(dsp_free_rsp_write_en),
-    .rsp_data_2({dsp_free_rsp_fail_reason,dsp_free_rsp_fail,dsp_free_rsp_id}),
+    .rsp_data_2({dsp_free_rsp_actual_size,dsp_free_rsp_origin_size,dsp_free_rsp_fail_reason,dsp_free_rsp_fail,dsp_free_rsp_id}),
     .rsp_write_en(free_rsp_write_en),
-    .rsp_data({free_rsp_fail_reason,free_rsp_fail,free_rsp_id})
+    .rsp_data({free_rsp_actual_size,free_rsp_origin_size,free_rsp_fail_reason,free_rsp_fail,free_rsp_id})
   );
 
   rsp_arbiter # (
-    .RSP_WIDTH (`REQ_ID_WIDTH+`ALL_PAGE_IDX_WIDTH+`FAIL_REASON_WIDTH+1)
+    .RSP_WIDTH (`REQ_ID_WIDTH+`ALL_PAGE_IDX_WIDTH+`FAIL_REASON_WIDTH+1+2*`REQ_SIZE_TYPE_WIDTH)
   )
   alloc_rsp_arbiter_inst (
     .clk(clk),
     .rst_n(rst_n),
     .rsp_write_en_1(ort_alloc_rsp_write_en),
-    .rsp_data_1({ort_alloc_rsp_fail_reason,ort_alloc_rsp_fail,ort_alloc_rsp_page_idx,ort_alloc_rsp_id}),
+    .rsp_data_1({ort_alloc_rsp_actual_size,ort_alloc_rsp_origin_size,ort_alloc_rsp_fail_reason,ort_alloc_rsp_fail,ort_alloc_rsp_page_idx,ort_alloc_rsp_id}),
     .rsp_write_en_2(dsp_alloc_rsp_write_en),
-    .rsp_data_2({dsp_alloc_rsp_fail_reason,dsp_alloc_rsp_fail,dsp_alloc_rsp_page_idx,dsp_alloc_rsp_id}),
+    .rsp_data_2({dsp_alloc_rsp_actual_size,dsp_alloc_rsp_origin_size,dsp_alloc_rsp_fail_reason,dsp_alloc_rsp_fail,dsp_alloc_rsp_page_idx,dsp_alloc_rsp_id}),
     .rsp_write_en(alloc_rsp_write_en),
-    .rsp_data({alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id})
+    .rsp_data({alloc_rsp_actual_size,alloc_rsp_origin_size,alloc_rsp_fail_reason,alloc_rsp_fail,alloc_rsp_page_idx,alloc_rsp_id})
   );
 
 

@@ -20,8 +20,6 @@ typedef struct packed{
    bit [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;
    bit alloc_rsp_fail;
    bit [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
-
-   //for generate free
    bit [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_request_size; //may not aligned
    bit [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_request_aligned_size; //aligned size
 }alloc_rsp;
@@ -30,6 +28,8 @@ typedef struct packed{
    bit [`REQ_ID_WIDTH-1:0] free_rsp_id;
    bit free_rsp_fail;
    bit [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
+   bit [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_page_count;
+   bit [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_aligned_page_count;
 }free_rsp;
 
 `define INIT_ALLOC_REQUEST_SIZE 16384
@@ -129,10 +129,12 @@ class MemoryChecker;
     task print_static_thread(
     );
     begin
+        time cur_time;
         @(print_trigger);
+        cur_time = $time;
         $display("*********Memory Checker Event Report*********");
         //display current ms
-        $display("Current time: %0t ms", $time / 1_000_000);
+        $display("Current time: %0t ms %0t us", cur_time/1000000,(cur_time%1000000)/1000);
         $display("total_submit_alloc_req:%d",total_submit_alloc_req);
         $display("total_submit_free_req:%d",total_submit_free_req);
         $display("total_success_alloc_rsp:%d",total_success_alloc_req);
@@ -142,11 +144,11 @@ class MemoryChecker;
         $display("on_flight_alloc_req:%d",on_flight_alloc_req);
         $display("on_flight_free_req:%d",on_flight_free_req);
         $display("page_in_use:%d",page_in_use);
-        $display("current_memory_usage:%.2f%%",current_memory_usage*100);
+        $display("current_memory_usage:%.3f%%",current_memory_usage*100);
         $display("page_max_in_use:%d",page_max_in_use);
-        $display("max_memory_usage:%.2f%%",max_memory_usage*100);
-        $display("ave_alloc_memory_per_sec:%.2fGB/s",ave_alloc_memory_per_sec);
-        $display("ave_free_memory_per_sec:%.2fGB/s",ave_free_memory_per_sec);
+        $display("max_memory_usage:%.3f%%",max_memory_usage*100);
+        $display("ave_alloc_memory_per_sec:%.3fGB/s",ave_alloc_memory_per_sec);
+        $display("ave_free_memory_per_sec:%.3fGB/s",ave_free_memory_per_sec);
         $display("diff_size_alloc_submitted_req:");
         for (int i=0; i<10; i++) begin
             $write("%4d:%4d;",i,diff_size_alloc_submitted_req[i]);
@@ -188,16 +190,21 @@ class MemoryChecker;
             alloc_req_map_samaphore.put();
             //the req must be valid
             assert(req.alloc_req_id == rsp.alloc_rsp_id) else $fatal("MMU:alloc rsp id %d is not valid",rsp.alloc_rsp_id);
+            assert(req.alloc_req_page_count == rsp.alloc_request_size) else $fatal("MMU:alloc rsp id %d is not valid, page count is not equal",rsp.alloc_rsp_id);
             
             //do some check step
             //1.assert the rsp must be valid or invalid base on the req size
             if(req.alloc_req_page_count == 0)begin
                 assert (rsp.alloc_rsp_fail==1 && rsp.alloc_rsp_fail_reason==`ALLOC_FAIL_REASON_EQUAL_ZERO)
                 else $fatal("MMU:alloc rsp id %d is not valid, fail reason is equal zero",rsp.alloc_rsp_id);
+                assert (rsp.alloc_request_aligned_size == 0) else
+                $fatal("MMU:alloc rsp id %d is not valid, aligned size is not equal",rsp.alloc_rsp_id);
                 fail_rsp = 1;
             end else if (req.alloc_req_page_count >8)begin
                 assert (rsp.alloc_rsp_fail==1 && rsp.alloc_rsp_fail_reason==`ALLOC_FAIL_REASON_OVER_4KB)
                 else $fatal("MMU:alloc rsp id %d is not valid, fail reason is over 4k",rsp.alloc_rsp_id);
+                assert (rsp.alloc_request_aligned_size == 0) else
+                $fatal("MMU:alloc rsp id %d is not valid, aligned size is not equal",rsp.alloc_rsp_id);
                 fail_rsp = 1;
             end else begin
                 case (req.alloc_req_page_count)
@@ -215,13 +222,13 @@ class MemoryChecker;
                 tree_idx_start = rsp.alloc_rsp_page_idx>>3;
                 tree_idx_end = (rsp.alloc_rsp_page_idx+aligned_page_size-1)>>3;
                 if (tree_idx_start != tree_idx_end)begin
-                    assert (rsp.alloc_rsp_fail==1) else
                     $fatal("MMU:alloc rsp id %d is not valid, page idx is not in a tree",rsp.alloc_rsp_id);
-                    fail_rsp = 1;
                 end else begin
                     assert (rsp.alloc_rsp_fail==0) else
                     $fatal("MMU:alloc rsp id %d is not valid, fail reason is unknown",rsp.alloc_rsp_id);
                 end
+                assert (aligned_page_size == rsp.alloc_request_aligned_size) else
+                $fatal("MMU:alloc rsp id %d is not valid, aligned size is not equal",rsp.alloc_rsp_id);
             end 
             if(fail_rsp)begin
                 total_fail_alloc_req++;
@@ -285,13 +292,19 @@ class MemoryChecker;
             req = free_req_map[rsp.free_rsp_id];
             free_req_map_samaphore.put();
             assert(req.free_req_id == rsp.free_rsp_id) else $fatal("MMU:free rsp id %d is not valid",rsp.free_rsp_id);
+            assert(req.free_req_page_count == rsp.free_rsp_origin_page_count) else $fatal("MMU:free rsp id %d is not valid, page count is not equal",rsp.free_rsp_id);
+
             if(req.free_req_page_count == 0)begin
                 assert (rsp.free_rsp_fail==1 && rsp.free_rsp_fail_reason==`FREE_FAIL_REASON_EQUAL_ZERO)
                 else $fatal("MMU:free rsp id %d is not valid, fail reason is equal zero",rsp.free_rsp_id);
+                assert(rsp.free_rsp_aligned_page_count == 0) else
+                $fatal("MMU:free rsp id %d is not valid, aligned size is not equal",rsp.free_rsp_id);
                 fail_rsp = 1;
             end else if (req.free_req_page_count >8)begin
                 assert (rsp.free_rsp_fail==1 && rsp.free_rsp_fail_reason==`FREE_FAIL_REASON_OVER_4KB)
                 else $fatal("MMU:free rsp id %d is not valid, fail reason is over 4k",rsp.free_rsp_id);
+                assert (rsp.free_rsp_aligned_page_count == 0) else
+                $fatal("MMU:free rsp id %d is not valid, aligned size is not equal",rsp.free_rsp_id);
                 fail_rsp = 1;
             end else begin
                 //calculate the aligned size
@@ -308,13 +321,13 @@ class MemoryChecker;
                 tree_idx_start = req.free_req_page_idx>>3;
                 tree_idx_end = (req.free_req_page_idx+aligned_page_size-1)>>3;
                 if (tree_idx_start != tree_idx_end)begin
-                    assert (rsp.free_rsp_fail==1) //must fail
-                    else $fatal("MMU:free rsp id %d is not valid, page idx is not in a tree",rsp.free_rsp_id);
-                    fail_rsp = 1;
+                    $fatal("MMU:free rsp id %d is not valid, page idx is not in a tree",rsp.free_rsp_id);
                 end else begin                        
                     assert (rsp.free_rsp_fail==0) //must success
                     else   $fatal("MMU:free rsp id %d is not valid, fail reason is unknown",rsp.free_rsp_id);
                 end
+                assert (aligned_page_size == rsp.free_rsp_aligned_page_count) else
+                $fatal("MMU:free rsp id %d is not valid, aligned size is not equal",rsp.free_rsp_id);
             end 
             if(fail_rsp)begin
                 total_fail_free_req++;
@@ -371,9 +384,15 @@ interface mmu_if(input clk);
     logic [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;
     logic alloc_rsp_fail;
     logic [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
+    logic [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size; //may not aligned
+    logic [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size; //aligned size
+
     logic [`REQ_ID_WIDTH-1:0] free_rsp_id;
     logic free_rsp_fail;
     logic [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
+    logic [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size;
+    logic [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size;
+
     logic alloc_req_fifo_full;
     logic free_req_fifo_full;
     logic alloc_rsp_fifo_not_empty;
@@ -395,9 +414,13 @@ interface mmu_if(input clk);
         input alloc_rsp_page_idx;
         input alloc_rsp_fail;
         input alloc_rsp_fail_reason;
+        input alloc_rsp_origin_size;
+        input alloc_rsp_actual_size;
         input free_rsp_id;
         input free_rsp_fail;
         input free_rsp_fail_reason;
+        input free_rsp_origin_size;
+        input free_rsp_actual_size;
         input alloc_req_fifo_full;
         input free_req_fifo_full;
         input alloc_rsp_fifo_not_empty;
@@ -433,7 +456,7 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `RANDOM_NOT_ALIGNED_MIX;
+    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
@@ -529,9 +552,14 @@ module mmu_tree_tb;
         .alloc_rsp_page_idx(mif.alloc_rsp_page_idx),
         .alloc_rsp_fail(mif.alloc_rsp_fail),
         .alloc_rsp_fail_reason(mif.alloc_rsp_fail_reason),
+        .alloc_rsp_origin_size(mif.alloc_rsp_origin_size),
+        .alloc_rsp_actual_size(mif.alloc_rsp_actual_size),
+
         .free_rsp_id(mif.free_rsp_id),
         .free_rsp_fail(mif.free_rsp_fail),
         .free_rsp_fail_reason(mif.free_rsp_fail_reason),
+        .free_rsp_origin_size(mif.free_rsp_origin_size),
+        .free_rsp_actual_size(mif.free_rsp_actual_size),
     
         .alloc_req_fifo_full(mif.alloc_req_fifo_full),
         .free_req_fifo_full(mif.free_req_fifo_full),
@@ -1001,8 +1029,8 @@ endtask
             rsp.alloc_rsp_page_idx = mif.cb.alloc_rsp_page_idx;
             rsp.alloc_rsp_fail = mif.cb.alloc_rsp_fail;
             rsp.alloc_rsp_fail_reason = mif.cb.alloc_rsp_fail_reason;
-            rsp.alloc_request_size = 0;
-            rsp.alloc_request_aligned_size = 0;
+            rsp.alloc_request_size = mif.cb.alloc_rsp_origin_size;
+            rsp.alloc_request_aligned_size = mif.cb.alloc_rsp_actual_size;
         end
     endtask
 
@@ -1018,6 +1046,8 @@ endtask
             rsp.free_rsp_id = mif.cb.free_rsp_id;
             rsp.free_rsp_fail = mif.cb.free_rsp_fail;
             rsp.free_rsp_fail_reason = mif.cb.free_rsp_fail_reason;
+            rsp.free_rsp_origin_page_count = mif.cb.free_rsp_origin_size;
+            rsp.free_rsp_aligned_page_count = mif.cb.free_rsp_actual_size;
         end
     endtask
 

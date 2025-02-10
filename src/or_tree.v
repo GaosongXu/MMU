@@ -13,11 +13,13 @@
     alloc_id,
     alloc_tree_index,
     alloc_size,
+    alloc_origin_size,
 
     free_valid,
     free_id,
     free_page_index,
     free_size,
+    free_origin_size,
 
     at_tree_update_en,
     at_tree_update_column_idx,
@@ -29,11 +31,15 @@
     alloc_rsp_page_idx,
     alloc_rsp_fail,
     alloc_rsp_fail_reason,
+    alloc_rsp_origin_size,
+    alloc_rsp_actual_size,
     
     free_rsp_write_en,
     free_rsp_id,
     free_rsp_fail,
-    free_rsp_fail_reason
+    free_rsp_fail_reason,
+    free_rsp_origin_size,
+    free_rsp_actual_size
 );
 
 
@@ -44,10 +50,12 @@ input alloc_valid;
 input [`REQ_ID_WIDTH-1:0] alloc_id;
 input [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size;
+input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size;
 input free_valid; 
 input [`REQ_ID_WIDTH-1:0] free_id;
 input [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] free_size;
+input [`REQ_SIZE_TYPE_WIDTH-1:0] free_origin_size;
 
 
 output at_tree_update_en;
@@ -61,11 +69,15 @@ output [`REQ_ID_WIDTH-1:0] alloc_rsp_id;
 output [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx;    
 output alloc_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_actual_size;
 
 output free_rsp_write_en;
 output [`REQ_ID_WIDTH-1:0] free_rsp_id;
 output free_rsp_fail;
 output [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size;
 
 
 //************************************ signals
@@ -96,11 +108,13 @@ reg alloc_valid_n1,alloc_valid_n2;
 reg [`REQ_ID_WIDTH-1:0] alloc_id_n1,alloc_id_n2;
 reg [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index_n1,alloc_tree_index_n2;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_n1,alloc_size_n2;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_n1,alloc_origin_size_n2;
 
 reg free_valid_n1,free_valid_n2;
 reg [`REQ_ID_WIDTH-1:0] free_id_n1,free_id_n2;
 reg [`ALL_PAGE_IDX_WIDTH-1:0] free_page_index_n1,free_page_index_n2;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_size_n1,free_size_n2;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_origin_size_n1,free_origin_size_n2;
 
 
 
@@ -120,11 +134,15 @@ reg [`REQ_ID_WIDTH-1:0] alloc_rsp_id, alloc_rsp_id_next;
 reg [`ALL_PAGE_IDX_WIDTH-1:0] alloc_rsp_page_idx, alloc_rsp_page_idx_next;    
 reg alloc_rsp_fail, alloc_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] alloc_rsp_fail_reason, alloc_rsp_fail_reason_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size, alloc_rsp_actual_size;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_rsp_origin_size_next, alloc_rsp_actual_size_next;
 
 reg free_rsp_write_en, free_rsp_write_en_next;
 reg [`REQ_ID_WIDTH-1:0] free_rsp_id, free_rsp_id_next;
 reg free_rsp_fail, free_rsp_fail_next;
 reg [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason, free_rsp_fail_reason_next;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size, free_rsp_actual_size;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_origin_size_next, free_rsp_actual_size_next;
 
 
 wire [`OR_TREE_BIT_WIDTH-1:0] alloc_magic [`OR_TREE_BIT_WIDTH-1:0];
@@ -336,15 +354,20 @@ always @(*)begin
     alloc_rsp_page_idx_next = 0;
     alloc_rsp_fail_next = 1'b0;
     alloc_rsp_fail_reason_next = 0;
+    alloc_rsp_origin_size_next = 0;
+    alloc_rsp_actual_size_next = 0;
     if (alloc_valid_n2) begin
         //we have do a alloc method 
         alloc_rsp_write_en_next = 1'b1;
         alloc_rsp_id_next = alloc_id_n2;
+        alloc_rsp_origin_size_next = alloc_origin_size_n2;
         if (alloc_error_meet) begin
             alloc_rsp_fail_next = 1'b1;
             alloc_rsp_fail_reason_next = `ALLOC_FAIL_REASON_UNKNOWN_INTERNAL_ERROR;
+            alloc_rsp_actual_size_next = 0;
         end else begin
             alloc_rsp_page_idx_next = (alloc_tree_index_n2<<3) + alloc_page_idx;
+            alloc_rsp_actual_size_next = alloc_size_n2;//aligned size
         end
     end 
 end
@@ -357,12 +380,17 @@ always @(*) begin
     free_rsp_id_next = 0;
     free_rsp_fail_next = 1'b0;
     free_rsp_fail_reason_next = 0;
+    free_rsp_origin_size_next = 0;
+    free_rsp_actual_size_next = 0;
     if (free_valid_n2) begin
         free_rsp_write_en_next = 1'b1;
         free_rsp_id_next = free_id_n2;
+        free_rsp_origin_size_next = free_origin_size_n2;    
         if (free_error_meet) begin
             free_rsp_fail_next = 1'b1;
             free_rsp_fail_reason_next = `FREE_FAIL_REASON_FREE_OTHER;
+        end else begin
+            free_rsp_actual_size_next = free_size_n2;
         end
     end
 end
@@ -417,20 +445,28 @@ always @(posedge clk or negedge rst_n) begin
         alloc_rsp_page_idx <= 0;
         alloc_rsp_fail <= 1'b0;
         alloc_rsp_fail_reason <= 0;
+        alloc_rsp_origin_size <= 0;
+        alloc_rsp_actual_size <= 0;
         free_rsp_write_en <= 1'b0;
         free_rsp_id <= 0;
         free_rsp_fail <= 1'b0;
         free_rsp_fail_reason <= 0;
+        free_rsp_origin_size <= 0;
+        free_rsp_actual_size <= 0;
     end else begin
         alloc_rsp_write_en <= alloc_rsp_write_en_next;
         alloc_rsp_id <= alloc_rsp_id_next;
         alloc_rsp_page_idx <= alloc_rsp_page_idx_next;
         alloc_rsp_fail <= alloc_rsp_fail_next;
         alloc_rsp_fail_reason <= alloc_rsp_fail_reason_next;
+        alloc_rsp_origin_size <= alloc_rsp_origin_size_next;
+        alloc_rsp_actual_size <= alloc_rsp_actual_size_next;
         free_rsp_write_en <= free_rsp_write_en_next;
         free_rsp_id <= free_rsp_id_next;
         free_rsp_fail <= free_rsp_fail_next;
         free_rsp_fail_reason <= free_rsp_fail_reason_next;
+        free_rsp_origin_size <= free_rsp_origin_size_next;
+        free_rsp_actual_size <= free_rsp_actual_size_next;
     end
 end
 
@@ -448,12 +484,16 @@ always @(posedge clk or negedge rst_n) begin
         alloc_tree_index_n2 <= 0;
         alloc_size_n1 <= 0;
         alloc_size_n2 <= 0;
+        alloc_origin_size_n1 <= 0;
+        alloc_origin_size_n2 <= 0;
         free_id_n1 <= 0;
         free_id_n2 <= 0;
         free_page_index_n1 <= 0;
         free_page_index_n2 <= 0;
         free_size_n1 <= 0;
         free_size_n2 <= 0;
+        free_origin_size_n1 <= 0;
+        free_origin_size_n2 <= 0;
     end else begin
         alloc_valid_n1 <= alloc_valid;
         alloc_valid_n2 <= alloc_valid_n1;
@@ -465,12 +505,16 @@ always @(posedge clk or negedge rst_n) begin
         alloc_tree_index_n2 <= alloc_tree_index_n1;
         alloc_size_n1 <= alloc_size;
         alloc_size_n2 <= alloc_size_n1;
+        alloc_origin_size_n1 <= alloc_origin_size;
+        alloc_origin_size_n2 <= alloc_origin_size_n1;
         free_id_n1 <= free_id;
         free_id_n2 <= free_id_n1;
         free_page_index_n1 <= free_page_index;
         free_page_index_n2 <= free_page_index_n1;
         free_size_n1 <= free_size;
         free_size_n2 <= free_size_n1;
+        free_origin_size_n1 <= free_origin_size;
+        free_origin_size_n2 <= free_origin_size_n1;
     end
 end
 

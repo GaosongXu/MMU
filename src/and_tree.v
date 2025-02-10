@@ -14,11 +14,13 @@ module and_tree  (
     alloc_id_fdt_in,
     alloc_pos_fdt_in, //the 64 bit line to read out
     alloc_size_fdt_in, //aligned size
+    alloc_origin_size_fdt_in,
     //for fdt search result output
     alloc_valid_ort_out,
     alloc_id_ort_out,
     alloc_tree_index_ort_out,
     alloc_size_ort_out, 
+    alloc_origin_size_ort_out,
     //for or_tree update request input
     at_tree_update_en,
     at_tree_update_column_idx,
@@ -37,11 +39,13 @@ input alloc_valid_fdt_in;
 input [`REQ_ID_WIDTH-1:0] alloc_id_fdt_in;
 input [`AT_TREE_INDEX_WIDTH-1:0] alloc_pos_fdt_in; //the 64 bit line to read out
 input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_fdt_in; //aligned size
+input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_fdt_in;
 //for fdt search result output
 output alloc_valid_ort_out;
 output [`REQ_ID_WIDTH-1:0] alloc_id_ort_out;
 output [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index_ort_out;
 output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_ort_out;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_ort_out;
 //for or_tree update request input
 input at_tree_update_en;
 input [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx;
@@ -57,6 +61,7 @@ reg alloc_valid_fdt_in_n1, alloc_valid_fdt_in_n2, alloc_valid_fdt_in_n3;
 reg [`REQ_ID_WIDTH-1:0] alloc_id_fdt_in_n1, alloc_id_fdt_in_n2, alloc_id_fdt_in_n3;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_fdt_in_n1, alloc_size_fdt_in_n2 ,alloc_size_fdt_in_n3;
 reg [`AT_TREE_INDEX_WIDTH-1:0] alloc_pos_fdt_in_n1, alloc_pos_fdt_in_n2, alloc_pos_fdt_in_n3;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_fdt_in_n1, alloc_origin_size_fdt_in_n2, alloc_origin_size_fdt_in_n3;
 
 reg at_tree_update_en_n1, at_tree_update_en_n2, at_tree_update_en_n3;
 reg [`AT_TREE_INDEX_WIDTH-1:0] at_tree_update_column_idx_n1;
@@ -67,6 +72,7 @@ reg alloc_valid_ort_out;
 reg [`REQ_ID_WIDTH-1:0] alloc_id_ort_out;
 reg [`OR_TREE_INDEX_WIDTH-1:0] alloc_tree_index_ort_out;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_ort_out;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_ort_out;
 
 reg fdt_update_valid;
 reg [`FDT_INDEX_WIDTH-1:0] fdt_update_idx;
@@ -151,6 +157,7 @@ always @(*) begin
     alloc_valid_ort_out = alloc_valid_fdt_in_n3;
     alloc_id_ort_out = alloc_id_fdt_in_n3;
     alloc_size_ort_out = alloc_size_fdt_in_n3;
+    alloc_origin_size_ort_out = alloc_origin_size_fdt_in_n3;
 end
 
 
@@ -297,6 +304,9 @@ always @(posedge clk or negedge rst_n) begin
         alloc_pos_fdt_in_n1 <= 0;
         alloc_pos_fdt_in_n2 <= 0;
         alloc_pos_fdt_in_n3 <= 0;
+        alloc_origin_size_fdt_in_n1 <= 0;
+        alloc_origin_size_fdt_in_n2 <= 0;
+        alloc_origin_size_fdt_in_n3 <= 0;
 
         at_tree_update_en_n1 <= 1'b0;
         at_tree_update_en_n2 <= 1'b0;
@@ -319,6 +329,9 @@ always @(posedge clk or negedge rst_n) begin
         alloc_pos_fdt_in_n1 <= alloc_pos_fdt_in;
         alloc_pos_fdt_in_n2 <= alloc_pos_fdt_in_n1;
         alloc_pos_fdt_in_n3 <= alloc_pos_fdt_in_n2;
+        alloc_origin_size_fdt_in_n1 <= alloc_origin_size_fdt_in;
+        alloc_origin_size_fdt_in_n2 <= alloc_origin_size_fdt_in_n1;
+        alloc_origin_size_fdt_in_n3 <= alloc_origin_size_fdt_in_n2;
 
         at_tree_update_en_n1 <= at_tree_update_en; 
         at_tree_update_en_n2 <= at_tree_update_en_n1;

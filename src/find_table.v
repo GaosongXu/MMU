@@ -12,11 +12,13 @@ module find_table(
     alloc_valid_dsp_in,
     alloc_id_dsp_in,
     alloc_size_dsp_in, //aligned size
+    alloc_origin_size_dsp_in, //original size
     //search the table , put the result to the at tree
     alloc_valid_at_out,
     alloc_id_at_out,
     alloc_row_index_at_out,
     alloc_size_at_out, 
+    alloc_origin_size_at_out,
     //update from the at tree
     fdt_update_valid_at_in,
     fdt_update_idx_at_in,
@@ -30,11 +32,13 @@ input rst_n;
 input alloc_valid_dsp_in;
 input [`REQ_ID_WIDTH-1:0] alloc_id_dsp_in;
 input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_dsp_in; 
+input [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_dsp_in;
 //for fdt search result output
 output alloc_valid_at_out;
 output [`REQ_ID_WIDTH-1:0] alloc_id_at_out;
 output [`AT_TREE_INDEX_WIDTH-1:0] alloc_row_index_at_out;
 output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_at_out;
+output [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_at_out;
 input fdt_update_valid_at_in;
 input [`FDT_INDEX_WIDTH-1:0] fdt_update_idx_at_in;
 input [`FDT_BIT_WIDTH-1:0] fdt_update_bit_sequence_at_in;
@@ -45,9 +49,11 @@ reg alloc_valid_at_out;
 reg [`REQ_ID_WIDTH-1:0] alloc_id_at_out;
 reg [`AT_TREE_INDEX_WIDTH-1:0] alloc_row_index_at_out;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_at_out;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_at_out;
 reg alloc_valid_dsp_in_n1,alloc_valid_dsp_in_n2,alloc_valid_dsp_in_n3;
 reg [`REQ_ID_WIDTH-1:0] alloc_id_dsp_in_n1,alloc_id_dsp_in_n2,alloc_id_dsp_in_n3;
 reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_size_dsp_in_n1,alloc_size_dsp_in_n2,alloc_size_dsp_in_n3;
+reg [`REQ_SIZE_TYPE_WIDTH-1:0] alloc_origin_size_dsp_in_n1,alloc_origin_size_dsp_in_n2,alloc_origin_size_dsp_in_n3;
 reg fdt_blocked;
 
 reg fdt_update_valid_at_in_n1,fdt_update_valid_at_in_n2;
@@ -167,6 +173,7 @@ always @(*) begin
     alloc_id_at_out = alloc_id_dsp_in_n3;
     alloc_row_index_at_out = pos_out -1;
     alloc_size_at_out = alloc_size_dsp_in_n3;
+    alloc_origin_size_at_out = alloc_origin_size_dsp_in_n3;
 end
 
 
@@ -182,6 +189,9 @@ always @(posedge clk or negedge rst_n) begin
         alloc_size_dsp_in_n1 <= 0;
         alloc_size_dsp_in_n2 <= 0;
         alloc_size_dsp_in_n3 <= 0;
+        alloc_origin_size_dsp_in_n1 <= 0;
+        alloc_origin_size_dsp_in_n2 <= 0;
+        alloc_origin_size_dsp_in_n3 <= 0;
 
         fdt_table_read_value1 <= 0;
         fdt_mask <= 0;
@@ -215,21 +225,26 @@ always @(posedge clk or negedge rst_n) begin
         alloc_valid_dsp_in_n1 <= alloc_valid_dsp_in;
         alloc_id_dsp_in_n1 <= alloc_id_dsp_in;
         alloc_size_dsp_in_n1 <= alloc_size_dsp_in;
+        alloc_origin_size_dsp_in_n1 <= alloc_origin_size_dsp_in;
         //stop spread if blocked
         if(!blocked) begin
             alloc_valid_dsp_in_n2 <= alloc_valid_dsp_in_n1;
             alloc_id_dsp_in_n2 <= alloc_id_dsp_in_n1;
             alloc_size_dsp_in_n2 <= alloc_size_dsp_in_n1;
+            alloc_origin_size_dsp_in_n2 <= alloc_origin_size_dsp_in_n1;
             alloc_valid_dsp_in_n3 <= alloc_valid_dsp_in_n2;
             alloc_id_dsp_in_n3 <= alloc_id_dsp_in_n2;
             alloc_size_dsp_in_n3 <= alloc_size_dsp_in_n2;
+            alloc_origin_size_dsp_in_n3 <= alloc_origin_size_dsp_in_n2;
         end else begin
             alloc_valid_dsp_in_n2 <= 0;
             alloc_id_dsp_in_n2 <= 0;
             alloc_size_dsp_in_n2 <= 0;
+            alloc_origin_size_dsp_in_n2 <= 0;
             alloc_valid_dsp_in_n3 <= 0;
             alloc_id_dsp_in_n3 <= 0;
             alloc_size_dsp_in_n3 <= 0;
+            alloc_origin_size_dsp_in_n3 <= 0;
         end
 
         fdt_table_read_value1 <= fdt_table_read_value1_next;
