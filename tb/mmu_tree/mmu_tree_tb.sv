@@ -458,13 +458,13 @@ module mmu_tree_tb;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
     localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
-    localparam DEFAULT_FREE_MODE = `FREE_INVALID;
+    localparam DEFAULT_FREE_MODE = `FREE_EQUAL_ALLOC;
     localparam PRESSURE_TEST_PER_PACKET = 128;
-    localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam MAX_TIME_OUT = 4000_000; //4000_000 ns
-    localparam FREE_SUBMIT_LATENCY = 10;//default 1 ,same as the alloc latency
-    localparam FREE_RSP_LATENCY = 2;//default2:make free fifo full,make sure the free finish when alloc finish
-    localparam ALLOC_RSP_LATENCY = 2; //default2:simulate the dsa, if the pop method is slow
+    localparam FREE_SUBMIT_LATENCY = 5;//default 1 ,same as the alloc latency
+    localparam FREE_RSP_LATENCY = 1;//default2:make free fifo full,make sure the free finish when alloc finish
+    localparam ALLOC_RSP_LATENCY = 1; //default2:simulate the dsa, if the pop method is slow
+    localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
 
     localparam RAMDOM_512_WEIGHT = 25;
     localparam RAMDOM_1K_WEIGHT = 25;

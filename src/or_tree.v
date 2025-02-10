@@ -329,7 +329,8 @@ always @(*) begin
         if(!free_error_meet_next)begin
             free_write_en_next = 1'b1;
             free_base_data = free_magic[magic_free_tree_idx] & read_data2;
-            free_write_data_next ={|free_base_data[7:0],|free_base_data[7:4],|free_base_data[3:0],|free_base_data[7:6],|free_base_data[5:4],|free_base_data[3:2],|free_base_data[1:0],free_base_data};
+            free_write_data_next ={|free_base_data[7:0],|free_base_data[7:4],|free_base_data[3:0],|free_base_data[7:6],|free_base_data[5:4],
+                                   |free_base_data[3:2],|free_base_data[1:0],free_base_data};
         end
     end
 end
