@@ -2,7 +2,7 @@
 //! the module handle the find request from fdt, and updated by the or_tree
 //! then pop the update value to the fdt
 
-`include "../src/ram_3port.v"
+`include "../src/ram_3port_dp.v"
 `include "../src/mmu_param.vh"
 `include "../src/first_zero.v"
 
@@ -356,7 +356,7 @@ first_zero  first_zero_inst (
     .mask_out() //dont care
   );
 
-ram_3port #(
+  ram_3port_dp #(
     .ADDR_WIDTH(`AT_TREE_INDEX_WIDTH),
     .DATA_WIDTH(`AT_TREE_DATA_WIDTH)
 )  at_tree_512 (
@@ -370,7 +370,7 @@ ram_3port #(
     .read_data2(at_tree_512_read_data2)
 );
 
-ram_3port #(
+ram_3port_dp #(
     .ADDR_WIDTH(`AT_TREE_INDEX_WIDTH),
     .DATA_WIDTH(`AT_TREE_DATA_WIDTH)
 )  at_tree_1k (
@@ -384,7 +384,7 @@ ram_3port #(
     .read_data2(at_tree_1k_read_data2)
 );
 
-ram_3port #(
+ram_3port_dp #(
     .ADDR_WIDTH(`AT_TREE_INDEX_WIDTH),
     .DATA_WIDTH(`AT_TREE_DATA_WIDTH)
 )  at_tree_2k (
@@ -398,7 +398,7 @@ ram_3port #(
     .read_data2(at_tree_2k_read_data2)
 );
 
-ram_3port #(
+ram_3port_dp #(
     .ADDR_WIDTH(`AT_TREE_INDEX_WIDTH),
     .DATA_WIDTH(`AT_TREE_DATA_WIDTH)
 )  at_tree_4k (

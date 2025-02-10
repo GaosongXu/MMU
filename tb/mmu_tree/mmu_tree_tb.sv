@@ -456,7 +456,7 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
+    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_1K;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
@@ -494,11 +494,13 @@ module mmu_tree_tb;
         top.mmu_tree_inst.find_table_inst.fdt_2k.memory = '{default:0};
         top.mmu_tree_inst.find_table_inst.fdt_4k.memory = '{default:0};
         top.mmu_tree_inst.find_table_inst.fdt_512.memory = '{default:0};
-        top.mmu_tree_inst.and_tree_inst.at_tree_1k.memory = '{default:0};
-        top.mmu_tree_inst.and_tree_inst.at_tree_2k.memory = '{default:0};
-        top.mmu_tree_inst.and_tree_inst.at_tree_4k.memory = '{default:0};
-        top.mmu_tree_inst.and_tree_inst.at_tree_512.memory = '{default:0};
-        top.mmu_tree_inst.or_tree_inst.or_tree_ram.memory = '{default:0};
+
+        top.mmu_tree_inst.and_tree_inst.at_tree_1k.dpram_inst.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_2k.dpram_inst.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_4k.dpram_inst.memory = '{default:0};
+        top.mmu_tree_inst.and_tree_inst.at_tree_512.dpram_inst.memory = '{default:0};
+
+        top.mmu_tree_inst.or_tree_inst.or_tree_ram.spram_inst.memory = '{default:0};
     end
     initial begin
         begin

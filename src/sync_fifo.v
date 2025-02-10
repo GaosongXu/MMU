@@ -5,7 +5,7 @@
 `ifndef SYNC_FIFO_H
 `define SYNC_FIFO_H
 
-`include "../src/simple_dual_one_clock.v"
+`include "../src/spram.v"
 
 module sync_fifo #(
     parameter FIFO_PTR = 10,
@@ -130,7 +130,7 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 //build a sram here
-simple_dual_one_clock  #(
+spram  #(
     .ADDR_WIDTH(FIFO_PTR),
     .DATA_WIDTH(FIFO_WIDTH)
 ) sdp_0 (

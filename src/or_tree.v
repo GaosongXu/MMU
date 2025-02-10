@@ -3,7 +3,7 @@
 //!Introduction: The module is used to handle the alloc or free request and update the or tree table.
 //              Then update the tree and pop the change to the and tree module.
 
-`include "../src/ram_3port.v"
+`include "../src/ram_3port_sp.v"
 `include "../src/mmu_param.vh"
 
  module or_tree (
@@ -84,8 +84,10 @@ output [`REQ_SIZE_TYPE_WIDTH-1:0] free_rsp_actual_size;
 reg write_en;
 reg [`OR_TREE_INDEX_WIDTH-1:0] write_addr;
 reg [`OR_TREE_BIT_WIDTH-1:0] write_data;
+reg read_en1;
 reg [`OR_TREE_INDEX_WIDTH-1:0] read_addr1; //!alloc use this port
 wire [`OR_TREE_BIT_WIDTH-1:0] read_data1;
+reg read_en2;
 reg [`OR_TREE_INDEX_WIDTH-1:0] read_addr2; //!free use this port
 wire [`OR_TREE_BIT_WIDTH-1:0] read_data2;
 
@@ -203,8 +205,10 @@ assign full_1k_4 = read_data2[1:0] == 2'h3;
 
 //!generate the alloc read request
 always @(*) begin
+    read_en1 = 0;
     read_addr1 = 0;
     if(alloc_valid) begin
+        read_en1 = 1;
         read_addr1 = alloc_tree_index;
     end
 end
@@ -212,7 +216,9 @@ end
 //!generate the free read request
 always @(*) begin
     read_addr2 = 0;
+    read_en2 = 0;
     if(free_valid) begin
+        read_en2 = 1;
         read_addr2 = free_page_index >> 3;
     end
 end
@@ -540,7 +546,7 @@ end
 
 
 //************************************ module instantiation
-ram_3port #(
+ram_3port_sp #(
     .ADDR_WIDTH(`OR_TREE_INDEX_WIDTH),
     .DATA_WIDTH(`OR_TREE_BIT_WIDTH)
 ) or_tree_ram (
@@ -548,8 +554,10 @@ ram_3port #(
     .write_en(write_en),
     .write_addr(write_addr),
     .write_data(write_data),
+    .read_en1(read_en1),
     .read_addr1(read_addr1),
     .read_data1(read_data1),
+    .read_en2(read_en2),
     .read_addr2(read_addr2),
     .read_data2(read_data2) 
 );

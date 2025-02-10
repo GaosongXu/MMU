@@ -2,7 +2,7 @@
 //Usage:       A simple synchronous RAM module with 1 write port and 1 read port
 //Introduction: The module is used to store the data, and the data can be read by the read port.
 
-module simple_dual_one_clock #(
+module spram #(
     parameter ADDR_WIDTH = 6,
     parameter DATA_WIDTH = 64
 ) (
