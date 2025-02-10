@@ -32,7 +32,7 @@ typedef struct packed{
    bit [`FAIL_REASON_WIDTH-1:0] free_rsp_fail_reason;
 }free_rsp;
 
-`define INIT_ALLOC_REQUEST_SIZE 8192
+`define INIT_ALLOC_REQUEST_SIZE 16384
 
 class MemoryChecker;
 
@@ -128,18 +128,20 @@ class MemoryChecker;
         $display("total_success_free_rsp:%d",total_success_free_req);
         $display("total_fail_alloc_rsp:%d",total_fail_alloc_req);
         $display("total_fail_free_rsp:%d",total_fail_free_req);
+        $display("on_flight_alloc_req:%d",on_flight_alloc_req);
+        $display("on_flight_free_req:%d",on_flight_free_req);
         $display("page_in_use:%d",page_in_use);
         $display("current_memory_usage:%.2f%%",current_memory_usage*100);
         $display("page_max_in_use:%d",page_max_in_use);
         $display("max_memory_usage:%.2f%%",max_memory_usage*100);
         $display("diff_size_alloc_submitted_req:");
-        for (int i=1; i<10; i++) begin
-            $write("%5d:%5d;",i,diff_size_alloc_submitted_req[i]);
+        for (int i=0; i<10; i++) begin
+            $write("%4d:%4d;",i,diff_size_alloc_submitted_req[i]);
         end
         $display("");
         $display("diff_size_free_submitted_req:");
-        for (int i=1; i<10; i++) begin
-            $write("%5d:%5d;",i,diff_size_free_submitted_req[i]);
+        for (int i=0; i<10; i++) begin
+            $write("%4d:%4d;",i,diff_size_free_submitted_req[i]);
         end
         $display("");
         over = (on_flight_alloc_req==0 && on_flight_free_req==0 && (total_success_alloc_req+total_fail_alloc_req)==`INIT_ALLOC_REQUEST_SIZE
@@ -390,7 +392,7 @@ module mmu_tree_tb;
 
     localparam SEED = 158;
     localparam CLK_PERIOD = 5;
-    localparam MAX_REQ_SIZE = 8192;
+    localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
     localparam PRESSURE_TEST_PER_PACKET = 128;
@@ -398,6 +400,11 @@ module mmu_tree_tb;
     localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MAY_INVALID_MIX;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
     localparam MAX_TIME_OUT = 1000000; //100k cycle
+
+    localparam RAMDOM_512_WEIGHT = 25;
+    localparam RAMDOM_1K_WEIGHT = 25;
+    localparam RAMDOM_2K_WEIGHT = 25;
+    localparam RAMDOM_4K_WEIGHT = 25;
 
     bit clk, rst;
     
@@ -407,8 +414,8 @@ module mmu_tree_tb;
     mailbox checked_alloc_rsp_box; //tester can use this alloc rsp to generate free request
     mailbox alloc_rsp_box; //communicate to the checker
     mailbox free_rsp_box;
-    reg [`REQ_ID_WIDTH-1:0] last_alloc_req_id;
-    reg [`REQ_ID_WIDTH-1:0] last_free_req_id;
+    reg [`REQ_ID_WIDTH:0] last_alloc_req_id;
+    reg [`REQ_ID_WIDTH:0] last_free_req_id;
     semaphore alloc_req_fifo_semaphore;
     semaphore free_req_fifo_semaphore;
     MemoryChecker memory_checker;
@@ -655,7 +662,7 @@ module mmu_tree_tb;
             begin
                 req.free_req_id = last_free_req_id;
                 last_free_req_id++;
-                if (last_free_req_id == 0) begin
+                if (last_free_req_id>MAX_REQ_SIZE) begin
                     last_free_req_id = 1;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -673,7 +680,7 @@ module mmu_tree_tb;
                     begin
                         req.free_req_id = last_free_req_id;
                         last_free_req_id++;
-                        if (last_free_req_id == 0) begin
+                        if (last_free_req_id>MAX_REQ_SIZE) begin
                             last_free_req_id = 1;
                         end
                         req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -687,7 +694,7 @@ module mmu_tree_tb;
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id == 0) begin
+                            if (last_free_req_id>MAX_REQ_SIZE) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i;
@@ -702,7 +709,7 @@ module mmu_tree_tb;
                         for (i=0; i<2; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id == 0) begin
+                            if (last_free_req_id>MAX_REQ_SIZE) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
@@ -717,7 +724,7 @@ module mmu_tree_tb;
                         for (i=0; i<4; i++) begin
                             req.free_req_id = last_free_req_id;
                             last_free_req_id++;
-                            if (last_free_req_id == 0) begin
+                            if (last_free_req_id>MAX_REQ_SIZE) begin
                                 last_free_req_id = 1;
                             end
                             req.free_req_page_idx = rsp.alloc_rsp_page_idx + i*2;
@@ -737,7 +744,7 @@ module mmu_tree_tb;
                 if (rand_invalid==0||rand_invalid==20) begin
                     req.free_req_id = last_free_req_id;
                     last_free_req_id++;
-                    if (last_free_req_id == 0) begin
+                    if (last_free_req_id>MAX_REQ_SIZE) begin
                         last_free_req_id = 1;
                     end
                     req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -753,7 +760,7 @@ module mmu_tree_tb;
                 //a correct free is need, so we generate a correct free request
                 req.free_req_id = last_free_req_id;
                 last_free_req_id++;
-                if (last_free_req_id == 0) begin
+                if (last_free_req_id>MAX_REQ_SIZE) begin
                     last_free_req_id = 1;
                 end
                 req.free_req_page_idx = rsp.alloc_rsp_page_idx;//use the prev not aligned page idx
@@ -834,7 +841,7 @@ module mmu_tree_tb;
                         req.alloc_req_id = last_alloc_req_id;
                         req.alloc_req_page_count = page_count;    
                         last_alloc_req_id++;
-                        if(last_alloc_req_id==0)begin
+                        if(last_alloc_req_id>MAX_REQ_SIZE)begin
                             last_alloc_req_id=1; //id can not be 0
                         end
                         alloc_req_fifo_semaphore.get();
@@ -852,7 +859,7 @@ module mmu_tree_tb;
                         req.alloc_req_id = last_alloc_req_id;
                         req.alloc_req_page_count = page_count;    
                         last_alloc_req_id++;
-                        if(last_alloc_req_id==0)begin
+                        if(last_alloc_req_id>MAX_REQ_SIZE)begin
                             last_alloc_req_id=1; //id can not be 0
                         end
                         req_array[p] = req;
@@ -881,19 +888,37 @@ module mmu_tree_tb;
             integer i,j;
             integer random_page_count;
             alloc_req req;
-            assert (total_size <= 8192) else $fatal("alloc request fifo size is not enough");
+            integer weight;
+            assert (total_size <= MAX_REQ_SIZE) else $fatal("alloc request fifo size is not enough");
             for(i=0;i<total_size;i++) begin
                 req.alloc_req_id = last_alloc_req_id;
                 last_alloc_req_id++;
-                if (last_alloc_req_id == 0) begin //id can not be 0
+                if (last_alloc_req_id>MAX_REQ_SIZE) begin //id can not be 0
                     last_alloc_req_id = 1;
                 end
-
+                //we have a 1,2,4,8 weight, and the random value need generate from this weight
                 //here generate the random page count
+                weight = $urandom_range(0,100);
                 if (can_be_not_aligned) begin
-                    random_page_count = $urandom_range(1,8);
+                    if (weight < RAMDOM_512_WEIGHT) begin
+                        random_page_count = 1;
+                    end else if (weight < RAMDOM_512_WEIGHT+RAMDOM_1K_WEIGHT) begin
+                        random_page_count = 2;
+                    end else if (weight < RAMDOM_512_WEIGHT+RAMDOM_1K_WEIGHT+RAMDOM_2K_WEIGHT) begin
+                        random_page_count = $urandom_range(3,4);
+                    end else begin
+                        random_page_count = $urandom_range(5,8);
+                    end
                 end else begin
-                    random_page_count = 1 << $urandom_range(0,3);
+                    if (weight < RAMDOM_512_WEIGHT) begin
+                        random_page_count = 1;
+                    end else if (weight < RAMDOM_512_WEIGHT+RAMDOM_1K_WEIGHT) begin
+                        random_page_count = 2;
+                    end else if (weight < RAMDOM_512_WEIGHT+RAMDOM_1K_WEIGHT+RAMDOM_2K_WEIGHT) begin
+                        random_page_count = 4;
+                    end else begin
+                        random_page_count = 8;
+                    end
                 end
 
                 if(can_be_invalid)begin
