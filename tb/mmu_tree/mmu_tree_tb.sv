@@ -71,6 +71,7 @@ class MemoryChecker;
     real ave_alloc_memory_per_sec, ave_free_memory_per_sec;
     longint all_alloced_memory_size = 0;
     longint all_freed_memory_size = 0;
+    event print_trigger;
 
     //when to end the test?
     //the flight request is 0,and the total alloc rsp equal to the total submit alloc req
@@ -126,10 +127,10 @@ class MemoryChecker;
 
     //input the cycle number
     task print_static_thread(
-        output bit over
     );
     begin
-        $display("*********Memory Checker Report*********");
+        @(print_trigger);
+        $display("*********Memory Checker Event Report*********");
         //display current ms
         $display("Current time: %0t ms", $time / 1_000_000);
         $display("total_submit_alloc_req:%d",total_submit_alloc_req);
@@ -156,8 +157,14 @@ class MemoryChecker;
             $write("%4d:%4d;",i,diff_size_free_submitted_req[i]);
         end
         $display("");
-        over = (on_flight_alloc_req==0 && on_flight_free_req==0 && (total_success_alloc_req+total_fail_alloc_req)==`INIT_ALLOC_REQUEST_SIZE
-         && (page_in_use==0));
+    end
+    endtask
+    task test_over_check(
+        output bit test_over
+    );
+    begin
+        test_over = (on_flight_alloc_req==0 && on_flight_free_req==0 && (total_success_alloc_req+total_fail_alloc_req)==`INIT_ALLOC_REQUEST_SIZE
+            && (page_in_use==0));
     end
     endtask
 
@@ -180,17 +187,17 @@ class MemoryChecker;
             req = alloc_req_map[rsp.alloc_rsp_id];
             alloc_req_map_samaphore.put();
             //the req must be valid
-            assert(req.alloc_req_id == rsp.alloc_rsp_id) else $fatal("alloc rsp id %d is not valid",rsp.alloc_rsp_id);
+            assert(req.alloc_req_id == rsp.alloc_rsp_id) else $fatal("MMU:alloc rsp id %d is not valid",rsp.alloc_rsp_id);
             
             //do some check step
             //1.assert the rsp must be valid or invalid base on the req size
             if(req.alloc_req_page_count == 0)begin
                 assert (rsp.alloc_rsp_fail==1 && rsp.alloc_rsp_fail_reason==`ALLOC_FAIL_REASON_EQUAL_ZERO)
-                else $fatal("alloc rsp id %d is not valid, fail reason is equal zero",rsp.alloc_rsp_id);
+                else $fatal("MMU:alloc rsp id %d is not valid, fail reason is equal zero",rsp.alloc_rsp_id);
                 fail_rsp = 1;
             end else if (req.alloc_req_page_count >8)begin
                 assert (rsp.alloc_rsp_fail==1 && rsp.alloc_rsp_fail_reason==`ALLOC_FAIL_REASON_OVER_4KB)
-                else $fatal("alloc rsp id %d is not valid, fail reason is over 4k",rsp.alloc_rsp_id);
+                else $fatal("MMU:alloc rsp id %d is not valid, fail reason is over 4k",rsp.alloc_rsp_id);
                 fail_rsp = 1;
             end else begin
                 case (req.alloc_req_page_count)
@@ -209,22 +216,23 @@ class MemoryChecker;
                 tree_idx_end = (rsp.alloc_rsp_page_idx+aligned_page_size-1)>>3;
                 if (tree_idx_start != tree_idx_end)begin
                     assert (rsp.alloc_rsp_fail==1) else
-                    $fatal("alloc rsp id %d is not valid, page idx is not in a tree",rsp.alloc_rsp_id);
+                    $fatal("MMU:alloc rsp id %d is not valid, page idx is not in a tree",rsp.alloc_rsp_id);
                     fail_rsp = 1;
                 end else begin
                     assert (rsp.alloc_rsp_fail==0) else
-                    $fatal("alloc rsp id %d is not valid, fail reason is unknown",rsp.alloc_rsp_id);
+                    $fatal("MMU:alloc rsp id %d is not valid, fail reason is unknown",rsp.alloc_rsp_id);
                 end
             end 
             if(fail_rsp)begin
                 total_fail_alloc_req++;
                 on_flight_alloc_req--;
                 this.clear_alloc_req(req);
+                ->print_trigger;
                 continue;
             end
             ram_samaphore.get();
             for (int i=rsp.alloc_rsp_page_idx; i<rsp.alloc_rsp_page_idx+aligned_page_size; i++) begin
-                assert (ram[i] == 0) else $fatal("alloc rsp id %d is not valid, page idx %d is not zero",rsp.alloc_rsp_id,i);
+                assert (ram[i] == 0) else $fatal("MMU:alloc rsp id %d is not valid, page idx %d is not zero",rsp.alloc_rsp_id,i);
                 ram[i] = rsp.alloc_rsp_id;
             end
             ram_samaphore.put();
@@ -255,6 +263,7 @@ class MemoryChecker;
 
             //5.remove the req from the alloc_req_map
             this.clear_alloc_req(req);
+            ->print_trigger;
         end   
     end     
     endtask
@@ -275,14 +284,14 @@ class MemoryChecker;
             free_req_map_samaphore.get();
             req = free_req_map[rsp.free_rsp_id];
             free_req_map_samaphore.put();
-            assert(req.free_req_id == rsp.free_rsp_id) else $fatal("free rsp id %d is not valid",rsp.free_rsp_id);
+            assert(req.free_req_id == rsp.free_rsp_id) else $fatal("MMU:free rsp id %d is not valid",rsp.free_rsp_id);
             if(req.free_req_page_count == 0)begin
                 assert (rsp.free_rsp_fail==1 && rsp.free_rsp_fail_reason==`FREE_FAIL_REASON_EQUAL_ZERO)
-                else $fatal("free rsp id %d is not valid, fail reason is equal zero",rsp.free_rsp_id);
+                else $fatal("MMU:free rsp id %d is not valid, fail reason is equal zero",rsp.free_rsp_id);
                 fail_rsp = 1;
             end else if (req.free_req_page_count >8)begin
                 assert (rsp.free_rsp_fail==1 && rsp.free_rsp_fail_reason==`FREE_FAIL_REASON_OVER_4KB)
-                else $fatal("free rsp id %d is not valid, fail reason is over 4k",rsp.free_rsp_id);
+                else $fatal("MMU:free rsp id %d is not valid, fail reason is over 4k",rsp.free_rsp_id);
                 fail_rsp = 1;
             end else begin
                 //calculate the aligned size
@@ -300,23 +309,24 @@ class MemoryChecker;
                 tree_idx_end = (req.free_req_page_idx+aligned_page_size-1)>>3;
                 if (tree_idx_start != tree_idx_end)begin
                     assert (rsp.free_rsp_fail==1) //must fail
-                    else $fatal("free rsp id %d is not valid, page idx is not in a tree",rsp.free_rsp_id);
+                    else $fatal("MMU:free rsp id %d is not valid, page idx is not in a tree",rsp.free_rsp_id);
                     fail_rsp = 1;
                 end else begin                        
                     assert (rsp.free_rsp_fail==0) //must success
-                    else   $fatal("free rsp id %d is not valid, fail reason is unknown",rsp.free_rsp_id);
+                    else   $fatal("MMU:free rsp id %d is not valid, fail reason is unknown",rsp.free_rsp_id);
                 end
             end 
             if(fail_rsp)begin
                 total_fail_free_req++;
                 on_flight_free_req--;
                 this.clear_free_req(req);
+                ->print_trigger;
                 continue;
             end
             //3. check the ram, the range [free_rsp_page_idx,free_rsp_page_idx+free_req_page_count-1] must not be 0
             ram_samaphore.get();
             for (int i=req.free_req_page_idx; i<req.free_req_page_idx + aligned_page_size; i++) begin
-                assert (ram[i] !=0) else $fatal("free rsp id %d is not valid, page idx %d is not equal to the alloc id",rsp.free_rsp_id,i);
+                assert (ram[i] !=0) else $fatal("MMU:free rsp id %d is not valid, page idx %d is not equal to the alloc id",rsp.free_rsp_id,i);
                 ram[i] = 0;
             end
             ram_samaphore.put();
@@ -337,6 +347,7 @@ class MemoryChecker;
             page_use_samaphore.put();
 
             this.clear_free_req(req);
+            ->print_trigger;
         end
     end
     endtask
@@ -422,7 +433,7 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_ALLOC_MODE = `RANDOM_NOT_ALIGNED_MIX;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
@@ -554,23 +565,36 @@ module mmu_tree_tb;
             memory_checker.check_alloc_rsp_thread();
             memory_checker.check_free_rsp_thread();
             memory_checker_report_thread();
+            memory_checker_check_test_over_thread();
         join_any
     end
 
     task memory_checker_report_thread();
     begin
-        bit over;
-        repeat(200) @(mif.cb);
-        while (1) begin
-            memory_checker.print_static_thread(over);
-            if (over || $time > MAX_TIME_OUT) begin
-                $display("test is over, time:%0t", $time);
-                $finish;
-            end
-            repeat(100) @(mif.cb);
+        while (1) begin  
+            memory_checker.print_static_thread();
         end        
     end
+endtask
+
+    task memory_checker_check_test_over_thread();
+    begin
+        bit over;
+        while(1)begin
+            repeat(100) @(mif.cb);
+            memory_checker.test_over_check(over);
+            if (over) begin
+                $display("MMU:Test over, time:%0t ns", $time);
+                $finish;
+            end
+            if ($time > MAX_TIME_OUT) begin
+                $display("MMU:Test time out, time:%0t ns", $time);
+                $finish;
+            end
+        end 
+    end
     endtask
+
     
     //ok now we start write the thread
     task alloc_request_gen_thread();
@@ -860,7 +884,7 @@ module mmu_tree_tb;
             integer i,j,p;
             integer total_size;
             total_size = alloc_size_array[3]+alloc_size_array[2]+alloc_size_array[1]+alloc_size_array[0];
-            assert (total_size <= MAX_REQ_SIZE) else $fatal("alloc request fifo size is not enough");
+            assert (total_size <= MAX_REQ_SIZE) else $fatal("MMU:alloc request fifo size is not enough");
             if(!need_suffle)begin
                 for (j=0;j<4;j++) begin
                     page_count = 1 << j;
@@ -916,7 +940,7 @@ module mmu_tree_tb;
             integer random_page_count;
             alloc_req req;
             integer weight;
-            assert (total_size <= MAX_REQ_SIZE) else $fatal("alloc request fifo size is not enough");
+            assert (total_size <= MAX_REQ_SIZE) else $fatal("MMU:alloc request fifo size is not enough");
             for(i=0;i<total_size;i++) begin
                 req.alloc_req_id = last_alloc_req_id;
                 last_alloc_req_id++;
