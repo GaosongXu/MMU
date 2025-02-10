@@ -33,6 +33,9 @@ typedef struct packed{
 }free_rsp;
 
 `define INIT_ALLOC_REQUEST_SIZE 16384
+`define KB 1024
+`define MB 1024*1024
+`define GB 1024*1024*1024
 
 class MemoryChecker;
 
@@ -64,6 +67,10 @@ class MemoryChecker;
     integer on_flight_alloc_req = 0;
     integer on_flight_free_req = 0;
     semaphore page_use_samaphore;
+    time start_time;//for performance check
+    real ave_alloc_memory_per_sec, ave_free_memory_per_sec;
+    longint all_alloced_memory_size = 0;
+    longint all_freed_memory_size = 0;
 
     //when to end the test?
     //the flight request is 0,and the total alloc rsp equal to the total submit alloc req
@@ -82,6 +89,7 @@ class MemoryChecker;
         diff_size_alloc_submitted_req = '{default:0};
         diff_size_free_submitted_req = '{default:0};
         page_use_samaphore = new(1);
+        start_time = $time;
     endfunction //new()
 
     task register_alloc_req(alloc_req req);
@@ -122,6 +130,8 @@ class MemoryChecker;
     );
     begin
         $display("*********Memory Checker Report*********");
+        //display current ms
+        $display("Current time: %0t ms", $time / 1_000_000);
         $display("total_submit_alloc_req:%d",total_submit_alloc_req);
         $display("total_submit_free_req:%d",total_submit_free_req);
         $display("total_success_alloc_rsp:%d",total_success_alloc_req);
@@ -134,6 +144,8 @@ class MemoryChecker;
         $display("current_memory_usage:%.2f%%",current_memory_usage*100);
         $display("page_max_in_use:%d",page_max_in_use);
         $display("max_memory_usage:%.2f%%",max_memory_usage*100);
+        $display("ave_alloc_memory_per_sec:%.2fGB/s",ave_alloc_memory_per_sec);
+        $display("ave_free_memory_per_sec:%.2fGB/s",ave_free_memory_per_sec);
         $display("diff_size_alloc_submitted_req:");
         for (int i=0; i<10; i++) begin
             $write("%4d:%4d;",i,diff_size_alloc_submitted_req[i]);
@@ -158,6 +170,7 @@ class MemoryChecker;
         integer tree_idx_start;
         integer tree_idx_end;
         integer total_rsp_get = 0;
+        time gap_time;
 
         while (1) begin
             fail_rsp = 0;
@@ -223,6 +236,12 @@ class MemoryChecker;
             on_flight_alloc_req--;
 
             page_use_samaphore.get();
+
+            gap_time = $time - start_time;
+            all_alloced_memory_size += req.alloc_req_page_count * 512;//512 bytes per page
+            //the gap time is current ns,change to second
+            ave_alloc_memory_per_sec = all_alloced_memory_size*1.0/(gap_time*1.0e-9)/(`GB);
+
             page_in_use += req.alloc_req_page_count;
             if (page_in_use > page_max_in_use) begin
                 page_max_in_use = page_in_use;
@@ -249,6 +268,7 @@ class MemoryChecker;
         bit fail_rsp;
         integer tree_idx_start;
         integer tree_idx_end;
+        time gap_time;
 
         while(1)begin
             free_rsp_box.get(rsp);
@@ -307,6 +327,13 @@ class MemoryChecker;
             page_use_samaphore.get();
             page_in_use -= req.free_req_page_count;
             current_memory_usage = page_in_use*1.0/TOTAL_MEMORY_PAGE_IDX;
+
+            all_freed_memory_size += req.free_req_page_count * 512;//512 bytes per page
+            //the gap time is current ns,change to second
+            gap_time = $time - start_time;
+            ave_free_memory_per_sec = all_freed_memory_size*1.0/(gap_time*1.0e-9)/(`GB);
+
+
             page_use_samaphore.put();
 
             this.clear_free_req(req);
@@ -390,14 +417,14 @@ module mmu_tree_tb;
     timeunit 1ns;       
     timeprecision 1ps;  
 
+    localparam CLK_PERIOD = 2ns;
     localparam SEED = 158;
-    localparam CLK_PERIOD = 5;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
+    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
-    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MAY_INVALID_MIX;
     localparam DEFAULT_FREE_MODE = `NO_FREE;
     localparam MAX_TIME_OUT = 1000000; //100k cycle
 
