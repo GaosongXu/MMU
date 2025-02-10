@@ -64,7 +64,7 @@ localparam  ALLOC_WAIT_VALID = 4'd10;
 localparam  SPIN_WAIT_1    = 4'd7;
 localparam  SPIN_WAIT_2    = 4'd8;
 
-localparam  FREE_WAIT_VALID_COUNT = 5;
+localparam  FREE_WAIT_VALID_COUNT = 6;
 localparam  ALLOC_WAIT_VALID_COUNT = 6; //more than 1 cycle
 
 //************************************ ports

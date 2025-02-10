@@ -456,7 +456,7 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
     localparam DEFAULT_FREE_MODE = `FREE_SPLIT_ALLOC;
     localparam PRESSURE_TEST_PER_PACKET = 128;
     localparam INIT_ALLOC_REQUEST_SIZE = `INIT_ALLOC_REQUEST_SIZE;
