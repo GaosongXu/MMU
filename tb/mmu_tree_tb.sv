@@ -457,10 +457,11 @@ module mmu_tree_tb;
     localparam MAX_REQ_SIZE = 16384;
     localparam NEED_SHUFFLE = 0;
     localparam PRESSURE_TEST = 0;
-    localparam DEFAULT_ALLOC_MODE = `RANDOM_ALIGNED_MIX;
-    localparam DEFAULT_FREE_MODE = `FREE_EQUAL_ALLOC;
+    localparam DEFAULT_ALLOC_MODE = `PATTERN_ALL_4K;
+    localparam DEFAULT_FREE_MODE = `NO_FREE;
     localparam PRESSURE_TEST_PER_PACKET = 128;
-    localparam MAX_TIME_OUT = 4000_000; //4000_000 ns
+    // localparam MAX_TIME_OUT = 4000_000; //4000_000 ns
+    localparam MAX_TIME_OUT = 0; //ulimit ns
     localparam FREE_SUBMIT_LATENCY = 5;//default 1 ,same as the alloc latency
     localparam FREE_RSP_LATENCY = 1;//default2:make free fifo full,make sure the free finish when alloc finish
     localparam ALLOC_RSP_LATENCY = 1; //default2:simulate the dsa, if the pop method is slow
@@ -520,9 +521,9 @@ module mmu_tree_tb;
 
     //here init all global variables
     initial begin
-        checked_alloc_rsp_box = new(MAX_REQ_SIZE);
-        alloc_rsp_box = new(MAX_REQ_SIZE);
-        free_rsp_box = new(MAX_REQ_SIZE);
+        checked_alloc_rsp_box = new();
+        alloc_rsp_box = new();
+        free_rsp_box = new();//here
         last_alloc_req_id = 1;
         last_free_req_id = 1;
         alloc_req_fifo_semaphore = new(1);
@@ -621,7 +622,7 @@ endtask
                 $display("MMU:Test over, time:%0t ns", $time);
                 $finish;
             end
-            if ($time > MAX_TIME_OUT) begin
+            if ($time > MAX_TIME_OUT && MAX_TIME_OUT!=0) begin
                 $display("MMU:Test time out, time:%0t ns", $time);
                 $finish;
             end

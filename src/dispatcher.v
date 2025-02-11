@@ -3,7 +3,7 @@
 //!it will maintain a fsm to control the dispatch logic
 `include "../src/mmu_param.vh"
 module dispatcher  #(
-    parameter FREE_THRESHOLD = 64 //the threshold of the free fifo
+    parameter FREE_THRESHOLD = 128 //the threshold of the free fifo
 )
 (
     clk,
