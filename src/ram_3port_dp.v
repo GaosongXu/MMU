@@ -38,8 +38,6 @@ output [DATA_WIDTH-1:0] read_data2;
 
 //************************************ signals
 wire [ADDR_WIDTH-1:0] mux_addr;
-reg [DATA_WIDTH-1:0] read_data1;
-reg [DATA_WIDTH-1:0] read_data2;
 
 assign mux_addr = write_en ? write_addr : read_addr1;
 

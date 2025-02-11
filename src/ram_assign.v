@@ -26,7 +26,6 @@ output [DATA_WIDTH-1:0] read_data;
 
 //************************************ signals
 reg [DATA_WIDTH-1:0] memory [0:(1<<ADDR_WIDTH)-1];
-reg [DATA_WIDTH-1:0] read_data;
 
 
 //************************************ sequential logic

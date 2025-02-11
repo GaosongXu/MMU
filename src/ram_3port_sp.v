@@ -46,9 +46,6 @@ wire read_en;
 wire [ADDR_WIDTH-1:0] read_addr;
 wire [DATA_WIDTH-1:0] read_data;
 
-reg [DATA_WIDTH-1:0] read_data1;
-reg [DATA_WIDTH-1:0] read_data2;
-
 assign read_en = read_en1 | read_en2;
 assign read_addr = read_en1 ? read_addr1 : read_addr2;
 assign read_data1 = read_data;

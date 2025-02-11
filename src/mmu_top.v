@@ -5,7 +5,7 @@
 //!The real mmu module can be replaced with dummy mmu first
 
 `include "../src/mmu_tree.v"
-`include "../src/sync_fifo.v"
+// `include "../src/sync_fifo.v"
 
 module mmu_top (
     clk,
