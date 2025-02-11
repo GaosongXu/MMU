@@ -268,7 +268,7 @@ end
 //************************************ sequential logic
 always @(posedge clk or negedge rst_n) begin
     if (~rst_n)begin
-        fdt_update_bit_sequence_next <= 0;
+        fdt_update_bit_sequence <= 0;
     end else begin
         fdt_update_bit_sequence <= fdt_update_bit_sequence_next;
     end

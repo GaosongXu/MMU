@@ -163,7 +163,7 @@ dispatcher  dispatcher_inst (
     .alloc_rsp_fail(dsp_alloc_rsp_fail),
     .alloc_rsp_fail_reason(dsp_alloc_rsp_fail_reason),
     .alloc_rsp_origin_size(dsp_alloc_rsp_origin_size),
-    .alloc_rsp_actual_size(dsp_alloc_rsd_actual_size),
+    .alloc_rsp_actual_size(dsp_alloc_rsp_actual_size),
     .alloc_rsp_fifo_almost_full(alloc_rsp_fifo_almost_full),
     .free_rsp_write_en(dsp_free_rsp_write_en),
     .free_rsp_id(dsp_free_rsp_id),
