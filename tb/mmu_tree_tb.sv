@@ -1,8 +1,8 @@
 //@Author:GaoSong Xu
 //!This is the testbench for the mmu_tree module, we will generate the alloc request and free request, and check the memory usage
 
-`include "../../src/mmu_top.v"
-`include "../../src/mmu_param.vh"
+`include "../src/mmu_top.v"
+`include "../src/mmu_param.vh"
 
 typedef struct packed {
     bit [`REQ_ID_WIDTH-1:0] alloc_req_id;
