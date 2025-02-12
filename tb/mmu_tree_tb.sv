@@ -1029,7 +1029,7 @@ endtask
     );
         begin
             //wait free rsp fifo empty
-            wait (mif.cb.free_rsp_fifo_not_empty == 0) @(mif.cb);
+            wait (mif.cb.free_rsp_fifo_not_empty == 0);
             wait (mif.cb.alloc_rsp_fifo_not_empty == 1) @(mif.cb);
             mif.cb.alloc_rsp_pop <= 1; //we have read the alloc rsp, then pop it
             @(mif.cb);
