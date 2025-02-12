@@ -28,6 +28,7 @@ output [DATA_WIDTH-1:0] rd_data;
 
 
 //************************************ signals
+(* ram_style = "block" *)
 reg [DATA_WIDTH-1:0] memory [0:(1<<ADDR_WIDTH)-1];
 reg [DATA_WIDTH-1:0] rd_data;
 

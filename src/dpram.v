@@ -17,6 +17,7 @@ module dpram#(
         q_b
     );
     input clk;
+    
     input wen_a;
     input [ADDR_WIDTH-1:0] addr_a;
     input [DATA_WIDTH-1:0] data_a;
@@ -29,6 +30,8 @@ module dpram#(
 
     reg [DATA_WIDTH-1:0] q_a;
     reg [DATA_WIDTH-1:0] q_b;
+
+    (* ram_style = "block" *)
     reg [DATA_WIDTH-1:0] memory [0:(1<<ADDR_WIDTH)-1];
 
     always @(posedge clk) begin
@@ -36,7 +39,6 @@ module dpram#(
             memory[addr_a] <= data_a;
         end
         q_a <= memory[addr_a];
-
     end
     
     always @(posedge clk ) begin
